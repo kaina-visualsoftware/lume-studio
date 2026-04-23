@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LUME Studio - Admin Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: 'Inter', sans-serif; 
+      background: #09090B; 
+      -webkit-font-smoothing: antialiased;
+      color: #F4F4F5;
+    }
+    #root { min-height: 100vh; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel" data-presets="react">
+    const { useState, useEffect, useRef } = React;
+
+    // Cores consistentes
+    const colors = {
+      bg: '#09090B',
+      bgSecondary: '#18181B',
+      bgTertiary: '#27272A',
+      border: '#3F3F46',
+      borderLight: '#27272A',
+      text: '#FAFAFA',
+      textSecondary: '#A1A1AA',
+      textMuted: '#71717A',
+      accent: '#A78BFA',
+      accentHover: '#8B5CF6',
+      accentMuted: 'rgba(139, 92, 246, 0.15)',
+      success: '#10B981',
+      warning: '#F59E0B',
+      error: '#EF4444',
+      info: '#3B82F6',
+    };
+
+    // Icons
+    const IconDashboard = ({ size = 20, color = 'currentColor' }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5">
+        <rect x="3" y="3" width="7" height="7" rx="1" />
+        <rect x="14" y="3" width="7" height="7" rx="1" />
+        <rect x="3" y="14" width="7" height="7" rx="1" />
+        <rect x="14" y="14" width="7" height="7" rx="1" />
+      </svg>
+    );
+    const IconAnalytics = ({ size = 20, color = 'currentColor' }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5">
+        <path d="M3 3v18h18" /><path d="M7 16l4-4 4 4 5-6" />
+      </svg>
+    );
+    const IconUsers = ({ size = 20, color = 'currentColor' }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5">
+        <circle cx="9" cy="7" r="3" /><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2" />
+        <circle cx="19" cy="7" r="2" /><path d="M21 21v-2a2 2 0 00-2-2h-2" />
+      </svg>
+    );
+    const IconProducts = ({ size = 20, color = 'currentColor' }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5">
+        <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" />
+        <path d="M3.27 6.96L12 12.01l8.73-5.05" /><path d="M12 22.08V12" />
+      </svg>
+    );
+    const IconOrders = ({ size = 20, color = 'currentColor' }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5">
+        <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
+        <rect x="9" y="3" width="6" height="4" rx="1" /><path d="M9 12h6" /><path d="M9 16h6" />
+      </svg>
+    );
+    const IconSettings = ({ size = 20, color = 'currentColor' }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5">
+        <circle cx="12" cy="12" r="3" />
+        <path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+      </svg>
+    );
+    const IconSearch = ({ size = 20, color = 'currentColor' }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5">
+        <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.35-4.35" />
+      </svg>
+    );
+    const IconBell = ({ size = 20, color = 'currentColor' }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5">
+        <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 01-3.46 0" />
+      </svg>
+    );
+    const IconArrowUp = ({ size = 16, color = 'currentColor' }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2">
+        <path d="M12 19V5m-7 7l7-7 7 7" />
+      </svg>
+    );
+    const IconArrowDown = ({ size = 16, color = 'currentColor' }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2">
+        <path d="M12 5v14m7-7l-7 7-7-7" />
+      </svg>
+    );
+    const IconChevronLeft = ({ size = 16, color = 'currentColor' }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2">
+        <path d="M15 18l-6-6 6-6" />
+      </svg>
+    );
+    const IconChevronRight = ({ size = 16, color = 'currentColor' }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2">
+        <path d="M9 18l6-6-6-6" />
+      </svg>
+    );
+
+    // Styles
+    const styles = {
+      dashboard: { display: 'flex', minHeight: '100vh', background: colors.bg, fontFamily: "'Inter', sans-serif" },
+      sidebar: { width: 240, background: colors.bgSecondary, borderRight: `1px solid ${colors.borderLight}`, display: 'flex', flexDirection: 'column', padding: '24px 0', position: 'fixed', height: '100vh' },
+      logo: { padding: '0 24px 32px', borderBottom: `1px solid ${colors.borderLight}`, marginBottom: 24 },
+      logoText: { fontFamily: "'Space Grotesk', sans-serif", fontSize: 24, fontWeight: 700, color: colors.text, letterSpacing: '-0.5px' },
+      logoSubtext: { fontFamily: "'Inter', sans-serif", fontSize: 12, fontWeight: 500, color: colors.accent, marginLeft: 6, letterSpacing: '0.5px' },
+      nav: { display: 'flex', flexDirection: 'column', gap: 2, padding: '0 12px', flex: 1 },
+      navItem: { display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderRadius: 8, background: 'transparent', border: 'none', cursor: 'pointer', transition: 'all 0.15s ease', textAlign: 'left', width: '100%', color: colors.textMuted },
+      navItemActive: { background: colors.accentMuted, color: colors.accentHover },
+      navItemLabel: { fontSize: 14, fontWeight: 500 },
+      userInfo: { display: 'flex', alignItems: 'center', gap: 12, padding: '20px 24px', borderTop: `1px solid ${colors.borderLight}`, marginTop: 'auto' },
+      userAvatar: { width: 36, height: 36, borderRadius: 8, background: `linear-gradient(135deg, ${colors.accent}, ${colors.accentHover})`, color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600 },
+      userDetails: { display: 'flex', flexDirection: 'column' },
+      userName: { fontSize: 13, fontWeight: 600, color: colors.text },
+      userRole: { fontSize: 11, color: colors.textMuted },
+      mainContent: { marginLeft: 240, flex: 1, display: 'flex', flexDirection: 'column' },
+      header: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 32px', background: colors.bgSecondary, borderBottom: `1px solid ${colors.borderLight}`, position: 'sticky', top: 0, zIndex: 100 },
+      searchContainer: { display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: colors.bgTertiary, borderRadius: 8, border: `1px solid ${colors.borderLight}`, width: 260 },
+      searchInput: { border: 'none', background: 'transparent', outline: 'none', fontSize: 13, fontFamily: "'Inter', sans-serif", width: '100%', color: colors.text },
+      headerActions: { display: 'flex', alignItems: 'center', gap: 16 },
+      dateRangeSelector: { display: 'flex', background: colors.bgTertiary, borderRadius: 8, padding: 3, gap: 2 },
+      dateRangeButton: { padding: '6px 12px', borderRadius: 6, border: 'none', background: 'transparent', fontSize: 12, fontWeight: 500, fontFamily: "'Inter', sans-serif", color: colors.textMuted, cursor: 'pointer' },
+      dateRangeButtonActive: { background: colors.accentHover, color: '#FFFFFF' },
+      notificationButton: { position: 'relative', background: 'transparent', border: 'none', padding: 8, cursor: 'pointer' },
+      notificationBadge: { position: 'absolute', top: 4, right: 4, background: colors.accentHover, color: '#FFFFFF', fontSize: 10, fontWeight: 600, width: 16, height: 16, borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      currentTime: { fontSize: 13, fontWeight: 600, color: colors.text, fontFamily: "'Space Grotesk', sans-serif" },
+      content: { padding: 32, flex: 1 },
+      kpiGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20, marginBottom: 32 },
+      kpiCard: { background: colors.bgSecondary, borderRadius: 12, padding: 20, border: `1px solid ${colors.borderLight}` },
+      kpiHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
+      kpiLabel: { fontSize: 11, fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.5px' },
+      kpiTrend: { display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600 },
+      kpiTrendText: { fontSize: 11, fontWeight: 600 },
+      kpiValue: { fontFamily: "'Space Grotesk', sans-serif", fontSize: 28, fontWeight: 700, color: colors.text, marginBottom: 4 },
+      kpiSubValue: { fontSize: 12, color: colors.textMuted },
+      contentGrid: { display: 'grid', gridTemplateColumns: '1fr 340px', gap: 24 },
+      mainSection: { display: 'flex', flexDirection: 'column', gap: 24 },
+      sideSection: { display: 'flex', flexDirection: 'column', gap: 24 },
+      chartContainer: { background: colors.bgSecondary, borderRadius: 12, padding: 24, border: `1px solid ${colors.borderLight}` },
+      chartTitle: { fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 600, color: colors.text, marginBottom: 20 },
+      tableContainer: { background: colors.bgSecondary, borderRadius: 12, padding: 24, border: `1px solid ${colors.borderLight}` },
+      tableTitle: { fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 600, color: colors.text, marginBottom: 20 },
+      table: { width: '100%', borderCollapse: 'collapse' },
+      tableHeader: { borderBottom: `1px solid ${colors.borderLight}` },
+      tableTh: { textAlign: 'left', padding: '12px 16px', fontSize: 11, fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.5px' },
+      tableRow: { transition: 'background 0.15s ease' },
+      tableTd: { padding: '14px 16px', fontSize: 13, color: colors.textSecondary, borderBottom: `1px solid ${colors.borderLight}` },
+      statusBadge: { display: 'inline-block', padding: '4px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600 },
+      heatmapContainer: { background: colors.bgSecondary, borderRadius: 12, padding: 24, border: `1px solid ${colors.borderLight}` },
+      sectionTitle: { fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 600, color: colors.text, marginBottom: 20 },
+      topProductsContainer: { background: colors.bgSecondary, borderRadius: 12, padding: 24, border: `1px solid ${colors.borderLight}` },
+      activityContainer: { background: colors.bgSecondary, borderRadius: 12, padding: 24, border: `1px solid ${colors.borderLight}` },
+      loadingContainer: { display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: colors.bg },
+    };
+
+    // Data
+    const mockKPIs = [
+      { id: 'revenue', label: 'Receita Total', value: 284750, previousValue: 253400, unit: 'currency', trend: 'up' },
+      { id: 'users', label: 'Usuários Ativos', value: 18392, previousValue: 17015, unit: 'number', trend: 'up' },
+      { id: 'orders', label: 'Pedidos', value: 3847, previousValue: 3109, unit: 'number', trend: 'up' },
+      { id: 'conversion', label: 'Taxa de Conversão', value: 4.82, previousValue: 4.84, unit: 'percentage', trend: 'down' },
+    ];
+
+    const mockChartData = [];
+    for (let i = 0; i < 12; i++) {
+      mockChartData.push({ month: ['Mai','Jun','Jul','Ago','Set','Out','Nov','Dez','Jan','Fev','Mar','Abr'][i], revenue: 185000 + i * 10000 + Math.random() * 20000, average: 170000 + i * 5000 });
+    }
+
+    const mockOrders = [
+      { id: '#ORD-7841', customer: 'Ana Carolina Silva', product: 'Coleção Primavera', amount: 1850, status: 'delivered', date: new Date('2026-04-22') },
+      { id: '#ORD-7840', customer: 'Roberto Ferreira', product: 'Edição Limitada', amount: 2340, status: 'processing', date: new Date('2026-04-22') },
+      { id: '#ORD-7839', customer: 'Carla Mendes', product: 'Série Classic', amount: 980, status: 'delivered', date: new Date('2026-04-21') },
+      { id: '#ORD-7838', customer: 'Paulo Henrique', product: 'Coleção Inverno', amount: 3150, status: 'pending', date: new Date('2026-04-21') },
+      { id: '#ORD-7837', customer: 'Juliana Costa', product: 'Edição Especial', amount: 4200, status: 'processing', date: new Date('2026-04-20') },
+      { id: '#ORD-7836', customer: 'Marcos Vinícius', product: 'Série Premium', amount: 1890, status: 'delivered', date: new Date('2026-04-20') },
+      { id: '#ORD-7835', customer: 'Beatriz Rodrigues', product: 'Coleção Verão', amount: 1250, status: 'cancelled', date: new Date('2026-04-19') },
+      { id: '#ORD-7834', customer: 'Lucas Almeida', product: 'Edição Limitada', amount: 2800, status: 'delivered', date: new Date('2026-04-19') },
+    ];
+
+    const statusConfig = {
+      delivered: { label: 'Entregue', color: colors.success, bg: 'rgba(16, 185, 129, 0.15)' },
+      pending: { label: 'Pendente', color: colors.warning, bg: 'rgba(245, 158, 11, 0.15)' },
+      processing: { label: 'Processando', color: colors.accentHover, bg: colors.accentMuted },
+      cancelled: { label: 'Cancelado', color: colors.error, bg: 'rgba(239, 68, 68, 0.15)' },
+    };
+
+    const mockTopProducts = [
+      { name: 'Edição Limitada', sales: 1247, percentage: 32.4 },
+      { name: 'Coleção Primavera', sales: 892, percentage: 23.2 },
+      { name: 'Série Premium', sales: 654, percentage: 17.0 },
+      { name: 'Coleção Inverno', sales: 543, percentage: 14.1 },
+      { name: 'Edição Especial', sales: 511, percentage: 13.3 },
+    ];
+
+    const mockActivity = [
+      { id: '1', type: 'order', message: 'Novo pedido #ORD-7841', timestamp: new Date('2026-04-23T10:32:00') },
+      { id: '2', type: 'payment', message: 'Pagamento recebido - R$ 2.340', timestamp: new Date('2026-04-23T10:28:00') },
+      { id: '3', type: 'user', message: 'Novo usuário cadastrado', timestamp: new Date('2026-04-23T10:15:00') },
+      { id: '4', type: 'order', message: 'Pedido #ORD-7839 entregue', timestamp: new Date('2026-04-23T09:45:00') },
+      { id: '5', type: 'alert', message: 'Estoque baixo: Edição Limitada', timestamp: new Date('2026-04-23T09:30:00') },
+    ];
+
+    const mockHeatmap = Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => Math.floor(Math.random() * 100)));
+
+    const navItems = [
+      { id: 'dashboard', label: 'Dashboard', icon: IconDashboard },
+      { id: 'analytics', label: 'Analytics', icon: IconAnalytics },
+      { id: 'users', label: 'Usuários', icon: IconUsers },
+      { id: 'products', label: 'Produtos', icon: IconProducts },
+      { id: 'orders', label: 'Pedidos', icon: IconOrders },
+      { id: 'settings', label: 'Configurações', icon: IconSettings },
+    ];
+
+    // Hooks
+    function useCountUp(target, duration = 1500) {
+      const [count, setCount] = useState(0);
+      const startTime = useRef(null);
+      const startValue = useRef(0);
+
+      useEffect(() => {
+        startValue.current = count;
+        startTime.current = null;
+        const animate = (timestamp) => {
+          if (!startTime.current) startTime.current = timestamp;
+          const elapsed = timestamp - startTime.current;
+          const progress = Math.min(elapsed / duration, 1);
+          const easeOut = 1 - Math.pow(1 - progress, 3);
+          const currentValue = startValue.current + (target - startValue.current) * easeOut;
+          setCount(Math.round(currentValue * 100) / 100);
+          if (progress < 1) requestAnimationFrame(animate);
+        };
+        requestAnimationFrame(animate);
+      }, [target, duration]);
+
+      return count;
+    }
+
+    function useRealTimeClock() {
+      const [time, setTime] = useState(new Date());
+      useEffect(() => {
+        const interval = setInterval(() => setTime(new Date()), 1000);
+        return () => clearInterval(interval);
+      }, []);
+      return time;
+    }
+
+    // Components
+    function Sidebar({ activeItem, onItemChange }) {
+      return (
+        <aside style={styles.sidebar}>
+          <div style={styles.logo}>
+            <span style={styles.logoText}>LUME</span>
+            <span style={styles.logoSubtext}>STUDIO</span>
+          </div>
+          <nav style={styles.nav}>
+            {navItems.map(item => (
+              <button
+                key={item.id}
+                style={{ 
+                  ...styles.navItem, 
+                  ...(activeItem === item.id ? styles.navItemActive : {}),
+                  color: activeItem === item.id ? colors.accentHover : colors.textMuted
+                }}
+                onClick={() => onItemChange(item.id)}
+              >
+                <item.icon size={18} color="currentColor" />
+                <span style={styles.navItemLabel}>{item.label}</span>
+              </button>
+            ))}
+          </nav>
+          <div style={styles.userInfo}>
+            <div style={styles.userAvatar}>MV</div>
+            <div style={styles.userDetails}>
+              <span style={styles.userName}>Marcos Vinícius</span>
+              <span style={styles.userRole}>Administrador</span>
+            </div>
+          </div>
+        </aside>
+      );
+    }
+
+    function Header({ searchQuery, onSearchChange, notificationCount, dateRange, onDateRangeChange, currentTime }) {
+      const dateRangeOptions = ['today', '7d', '30d', 'custom'];
+      return (
+        <header style={styles.header}>
+          <div style={styles.searchContainer}>
+            <IconSearch size={16} color={colors.textMuted} />
+            <input type="text" placeholder="Buscar..." value={searchQuery} onChange={e => onSearchChange(e.target.value)} style={styles.searchInput} />
+          </div>
+          <div style={styles.headerActions}>
+            <div style={styles.dateRangeSelector}>
+              {dateRangeOptions.map(option => (
+                <button
+                  key={option}
+                  style={{ ...styles.dateRangeButton, ...(dateRange === option ? styles.dateRangeButtonActive : {}) }}
+                  onClick={() => onDateRangeChange(option)}
+                >
+                  {option === 'today' ? 'Hoje' : option === '7d' ? '7D' : option === '30d' ? '30D' : 'Custom'}
+                </button>
+              ))}
+            </div>
+            <button style={styles.notificationButton}>
+              <IconBell size={18} color={colors.textSecondary} />
+              {notificationCount > 0 && <span style={styles.notificationBadge}>{notificationCount}</span>}
+            </button>
+            <div style={styles.currentTime}>
+              {new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' }).format(currentTime)}
+            </div>
+          </div>
+        </header>
+      );
+    }
+
+    function KPICard({ kpi, index }) {
+      const animatedValue = useCountUp(kpi.value, 1500 + index * 200);
+      const percentageChange = ((kpi.value - kpi.previousValue) / kpi.previousValue * 100).toFixed(1);
+      const isPositive = kpi.trend === 'up';
+      const formatValue = (value) => {
+        if (kpi.unit === 'currency') return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value);
+        if (kpi.unit === 'percentage') return `${value.toFixed(2)}%`;
+        return new Intl.NumberFormat('pt-BR').format(value);
+      };
+      const trendColor = isPositive ? colors.success : colors.error;
+      return (
+        <div style={styles.kpiCard}>
+          <div style={styles.kpiHeader}>
+            <span style={styles.kpiLabel}>{kpi.label}</span>
+            <div style={{ ...styles.kpiTrend, color: trendColor, background: isPositive ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)' }}>
+              {kpi.trend === 'up' ? <IconArrowUp size={12} color={trendColor} /> : <IconArrowDown size={12} color={trendColor} />}
+              <span style={{ ...styles.kpiTrendText, color: trendColor }}>{Math.abs(parseFloat(percentageChange))}%</span>
+            </div>
+          </div>
+          <div style={styles.kpiValue}>{formatValue(animatedValue)}</div>
+          {kpi.unit === 'percentage' && <div style={styles.kpiSubValue}>do total de usuários</div>}
+        </div>
+      );
+    }
+
+    function RevenueChart({ data }) {
+      const maxRevenue = Math.max(...data.map(d => d.revenue));
+      return (
+        <div style={styles.chartContainer}>
+          <h3 style={styles.chartTitle}>Receita dos Últimos 12 Meses</h3>
+          <div style={{ height: 220, display: 'flex', alignItems: 'flex-end', gap: 6, padding: '0 4px' }}>
+            {data.map((d, i) => (
+              <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                <div style={{ 
+                  height: (d.revenue / maxRevenue) * 180, 
+                  width: '100%', 
+                  background: `linear-gradient(to top, ${colors.accentHover}, ${colors.accent})`,
+                  borderRadius: '4px 4px 0 0',
+                  minHeight: 4
+                }} />
+                <span style={{ fontSize: 10, color: colors.textMuted }}>{d.month}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    function OrdersTable({ orders, page, onPageChange }) {
+      const itemsPerPage = 4;
+      const totalPages = Math.ceil(orders.length / itemsPerPage);
+      const paginatedOrders = orders.slice(page * itemsPerPage, (page + 1) * itemsPerPage);
+      return (
+        <div style={styles.tableContainer}>
+          <h3 style={styles.tableTitle}>Pedidos Recentes</h3>
+          <table style={styles.table}>
+            <thead>
+              <tr style={styles.tableHeader}>
+                <th style={styles.tableTh}>ID</th>
+                <th style={styles.tableTh}>Cliente</th>
+                <th style={styles.tableTh}>Produto</th>
+                <th style={styles.tableTh}>Valor</th>
+                <th style={styles.tableTh}>Status</th>
+                <th style={styles.tableTh}>Data</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paginatedOrders.map((order, index) => (
+                <tr key={order.id} style={{ ...styles.tableRow, background: index % 2 === 0 ? 'transparent' : colors.bgTertiary + '40' }}>
+                  <td style={styles.tableTd}>{order.id}</td>
+                  <td style={{ ...styles.tableTd, fontWeight: 500, color: colors.text }}>{order.customer}</td>
+                  <td style={styles.tableTd}>{order.product}</td>
+                  <td style={{ ...styles.tableTd, fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600 }}>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.amount)}</td>
+                  <td style={styles.tableTd}>
+                    <span style={{ ...styles.statusBadge, background: statusConfig[order.status].bg, color: statusConfig[order.status].color }}>{statusConfig[order.status].label}</span>
+                  </td>
+                  <td style={{ ...styles.tableTd, color: colors.textMuted }}>{new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' }).format(order.date)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 12, marginTop: 16 }}>
+            <button style={{ opacity: page === 0 ? 0.3 : 1, background: colors.bgTertiary, border: 'none', borderRadius: 6, padding: 6, cursor: 'pointer' }} onClick={() => onPageChange(page - 1)} disabled={page === 0}><IconChevronLeft size={14} /></button>
+            <span style={{ fontSize: 12, color: colors.textMuted }}>{page + 1} / {totalPages}</span>
+            <button style={{ opacity: page === totalPages - 1 ? 0.3 : 1, background: colors.bgTertiary, border: 'none', borderRadius: 6, padding: 6, cursor: 'pointer' }} onClick={() => onPageChange(page + 1)} disabled={page === totalPages - 1}><IconChevronRight size={14} /></button>
+          </div>
+        </div>
+      );
+    }
+
+    function Heatmap({ data }) {
+      const days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+      const getColor = (value) => {
+        if (value < 20) return colors.bgTertiary;
+        if (value < 40) return colors.accent + '40';
+        if (value < 60) return colors.accent + '80';
+        if (value < 80) return colors.accent + 'CC';
+        return colors.accent;
+      };
+      return (
+        <div style={styles.heatmapContainer}>
+          <h3 style={styles.sectionTitle}>Atividade da Semana</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {data.map((row, dayIndex) => (
+              <div key={dayIndex} style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <span style={{ fontSize: 9, color: colors.textMuted, width: 20 }}>{days[dayIndex]}</span>
+                {row.map((value, hourIndex) => (
+                  <div key={hourIndex} style={{ width: 8, height: 8, flex: 1, borderRadius: 1, background: getColor(value), minWidth: '8px', maxWidth: '8px' }} />
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    function TopProductsChart({ products }) {
+      const maxSales = Math.max(...products.map(p => p.sales));
+      return (
+        <div style={styles.topProductsContainer}>
+          <h3 style={styles.sectionTitle}>Produtos Mais Vendidos</h3>
+          {products.map((product, index) => (
+            <div key={product.name} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: colors.accentHover, width: 16 }}>{index + 1}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <span style={{ fontSize: 12, color: colors.textSecondary }}>{product.name}</span>
+                  <span style={{ fontSize: 11, color: colors.textMuted }}>{product.sales}</span>
+                </div>
+                <div style={{ height: 4, background: colors.bgTertiary, borderRadius: 2, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${(product.sales / maxSales) * 100}%`, background: `linear-gradient(90deg, ${colors.accent}, ${colors.accentHover})`, borderRadius: 2 }} />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    function ActivityFeed({ events }) {
+      const getIcon = (type) => {
+        switch (type) {
+          case 'order': return <IconOrders size={12} color={colors.accentHover} />;
+          case 'user': return <IconUsers size={12} color={colors.info} />;
+          case 'payment': return <span style={{ fontSize: 12, color: colors.success }}>$</span>;
+          case 'alert': return <span style={{ fontSize: 12, color: colors.warning }}>!</span>;
+        }
+      };
+      const getTimeAgo = (date) => {
+        const now = new Date();
+        const diff = Math.floor((now.getTime() - date.getTime()) / 60000);
+        if (diff < 60) return `${diff}m`;
+        return `${Math.floor(diff / 60)}h`;
+      };
+      return (
+        <div style={styles.activityContainer}>
+          <h3 style={styles.sectionTitle}>Atividade Recente</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {events.map(event => (
+              <div key={event.id} style={{ display: 'flex', gap: 10 }}>
+                <div style={{ width: 24, height: 24, borderRadius: 6, background: colors.bgTertiary, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  {getIcon(event.type)}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: 12, color: colors.textSecondary, margin: 0, lineHeight: 1.4 }}>{event.message}</p>
+                  <span style={{ fontSize: 10, color: colors.textMuted }}>{getTimeAgo(event.timestamp)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // Main App
+    function App() {
+      const [activeItem, setActiveItem] = useState('dashboard');
+      const [searchQuery, setSearchQuery] = useState('');
+      const [notificationCount] = useState(3);
+      const [dateRange, setDateRange] = useState('30d');
+      const currentTime = useRealTimeClock();
+      const [page, setPage] = useState(0);
+      const [loading, setLoading] = useState(true);
+
+      useEffect(() => {
+        const timer = setTimeout(() => setLoading(false), 1200);
+        return () => clearTimeout(timer);
+      }, []);
+
+      if (loading) {
+        return (
+          <div style={styles.loadingContainer}>
+            <div style={{ width: 32, height: 32, border: `2px solid ${colors.border}`, borderTop: `2px solid ${colors.accentHover}`, borderRadius: 6, animation: 'spin 0.8s linear infinite' }} />
+            <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+            <div style={{ color: colors.textMuted, fontSize: 12, marginTop: 12 }}>Carregando...</div>
+          </div>
+        );
+      }
+
+      return (
+        <div style={styles.dashboard}>
+          <Sidebar activeItem={activeItem} onItemChange={setActiveItem} />
+          <div style={styles.mainContent}>
+            <Header searchQuery={searchQuery} onSearchChange={setSearchQuery} notificationCount={notificationCount} dateRange={dateRange} onDateRangeChange={setDateRange} currentTime={currentTime} />
+            <div style={styles.content}>
+              <div style={styles.kpiGrid}>
+                {mockKPIs.map((kpi, index) => <KPICard key={kpi.id} kpi={kpi} index={index} />)}
+              </div>
+              <div style={styles.contentGrid}>
+                <div style={styles.mainSection}>
+                  <RevenueChart data={mockChartData} />
+                  <OrdersTable orders={mockOrders} page={page} onPageChange={setPage} />
+                </div>
+                <div style={styles.sideSection}>
+                  <Heatmap data={mockHeatmap} />
+                  <TopProductsChart products={mockTopProducts} />
+                  <ActivityFeed events={mockActivity} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Render
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
