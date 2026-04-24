@@ -1,7 +1,7 @@
 import React from 'react';
 import { navItems } from '../data';
 import { colors } from '../types';
-import { IconDashboard, IconAnalytics, IconUsers, IconProducts, IconOrders, IconSettings } from './Icons';
+import { IconDashboard, IconAnalytics, IconUsers, IconProducts, IconOrders, IconSettings, IconServers } from './Icons';
 
 interface SidebarProps {
   activeItem: string;
@@ -17,6 +17,7 @@ const iconMap: Record<string, React.FC<{ size?: number; color?: string }>> = {
   products: IconProducts,
   orders: IconOrders,
   settings: IconSettings,
+  servers: IconServers,
 };
 
 const styles = {

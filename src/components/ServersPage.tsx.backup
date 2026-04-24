@@ -1,0 +1,831 @@
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { useTheme } from './Theme';
+import KPICards from './KPICards';
+import { PlacesLoading } from './PlacesLoading';
+import MultiSelectFilter from './MultiSelectFilter';
+import { darkColors, lightColors } from '../types';
+import { IconSearch } from './Icons';
+
+type ServerStatus = 'online' | 'offline' | 'maintenance' | 'degraded';
+type ServerType = 'vps' | 'dedicated' | 'cloud' | 'shared' | 'colocation';
+type BillingCycle = 'monthly' | 'annually' | 'hourly';
+
+interface ResourceUsage { used: number; total: number; }
+
+interface AccessTerminal {
+  id: string;
+  label: string;
+  ip: string;
+  port: number;
+  protocol: 'SSH' | 'RDP' | 'VNC' | 'HTTPS';
+  lastAccess: Date;
+  isActive: boolean;
+}
+
+interface Server {
+  id: string;
+  name: string;
+  hostname: string;
+  type: ServerType;
+  status: ServerStatus;
+  provider: string;
+  region: string;
+  ip: { public: string; private?: string; ipv6?: string };
+  specs: { cpu: number; ram: number; storage: number; bandwidth: number };
+  usage: { cpu: ResourceUsage; ram: ResourceUsage; storage: ResourceUsage; bandwidth: ResourceUsage; uptime: number };
+  cost: { amount: number; cycle: BillingCycle; nextBilling: Date; annualTotal: number };
+  terminals: AccessTerminal[];
+  tags: string[];
+  os: string;
+  createdAt: Date;
+  notes?: string;
+}
+
+interface HostingService {
+  id: string;
+  name: string;
+  type: 'domain' | 'cdn' | 'email' | 'ssl' | 'storage' | 'database' | 'monitoring';
+  provider: string;
+  status: 'active' | 'expiring' | 'expired';
+  cost: { amount: number; cycle: BillingCycle; nextBilling: Date };
+}
+
+const mockServers: Server[] = [
+  { id: 'srv-001', name: 'prod-api-01', hostname: 'api-01.infra.empresa.com.br', type: 'vps', status: 'online', provider: 'Hetzner', region: 'Falkenstein', ip: { public: '65.21.142.88', private: '10.0.0.10' }, specs: { cpu: 8, ram: 32, storage: 240, bandwidth: 1000 }, usage: { cpu: { used: 61, total: 100 }, ram: { used: 21, total: 32 }, storage: { used: 98, total: 240 }, bandwidth: { used: 430, total: 1000 }, uptime: 99.97 }, cost: { amount: 380, cycle: 'monthly', nextBilling: new Date('2025-02-01'), annualTotal: 4560 }, terminals: [{ id: 't1', label: 'SSH', ip: '65.21.142.88', port: 22, protocol: 'SSH', lastAccess: new Date(), isActive: true }], tags: ['production', 'api'], os: 'Ubuntu 22.04', createdAt: new Date('2023-03-15') },
+  { id: 'srv-002', name: 'prod-db-01', hostname: 'db-01.infra.empresa.com.br', type: 'dedicated', status: 'online', provider: 'Hetzner', region: 'Nuremberg', ip: { public: '78.46.209.14', private: '10.0.0.11' }, specs: { cpu: 16, ram: 64, storage: 960, bandwidth: 1000 }, usage: { cpu: { used: 34, total: 100 }, ram: { used: 48, total: 64 }, storage: { used: 620, total: 960 }, bandwidth: { used: 210, total: 1000 }, uptime: 99.99 }, cost: { amount: 890, cycle: 'monthly', nextBilling: new Date('2025-02-01'), annualTotal: 10680 }, terminals: [{ id: 't3', label: 'SSH', ip: '10.0.0.11', port: 22, protocol: 'SSH', lastAccess: new Date(), isActive: true }], tags: ['production', 'database'], os: 'Debian 12', createdAt: new Date('2022-11-01') },
+  { id: 'srv-003', name: 'stg-app-01', hostname: 'stg-01.infra.empresa.com.br', type: 'vps', status: 'degraded', provider: 'DigitalOcean', region: 'New York', ip: { public: '143.198.57.22', private: '10.114.0.5' }, specs: { cpu: 4, ram: 8, storage: 160, bandwidth: 500 }, usage: { cpu: { used: 89, total: 100 }, ram: { used: 7, total: 8 }, storage: { used: 74, total: 160 }, bandwidth: { used: 312, total: 500 }, uptime: 97.3 }, cost: { amount: 210, cycle: 'monthly', nextBilling: new Date('2025-02-05'), annualTotal: 2520 }, terminals: [{ id: 't5', label: 'SSH', ip: '143.198.57.22', port: 2222, protocol: 'SSH', lastAccess: new Date(), isActive: false }], tags: ['staging'], os: 'Ubuntu 20.04', createdAt: new Date('2023-08-20'), notes: 'CPU elevado - investigar processos' },
+  { id: 'srv-004', name: 'cdn-edge-sa', hostname: 'edge-sa.empresa.com.br', type: 'cloud', status: 'online', provider: 'AWS', region: 'São Paulo', ip: { public: '177.71.249.100', ipv6: '2600:1f18::1' }, specs: { cpu: 4, ram: 16, storage: 80, bandwidth: 2000 }, usage: { cpu: { used: 22, total: 100 }, ram: { used: 6, total: 16 }, storage: { used: 12, total: 80 }, bandwidth: { used: 890, total: 2000 }, uptime: 100 }, cost: { amount: 520, cycle: 'monthly', nextBilling: new Date('2025-02-01'), annualTotal: 6240 }, terminals: [{ id: 't6', label: 'Console', ip: '177.71.249.100', port: 443, protocol: 'HTTPS', lastAccess: new Date(), isActive: true }], tags: ['cdn'], os: 'Amazon Linux', createdAt: new Date('2024-01-10') },
+  { id: 'srv-005', name: 'bkp-storage-01', hostname: 'bkp-01.infra.empresa.com.br', type: 'vps', status: 'maintenance', provider: 'Contabo', region: 'Düsseldorf', ip: { public: '194.163.128.42', private: '192.168.1.50' }, specs: { cpu: 6, ram: 16, storage: 2000, bandwidth: 400 }, usage: { cpu: { used: 8, total: 100 }, ram: { used: 4, total: 16 }, storage: { used: 1340, total: 2000 }, bandwidth: { used: 60, total: 400 }, uptime: 98.1 }, cost: { amount: 140, cycle: 'monthly', nextBilling: new Date('2025-02-10'), annualTotal: 1680 }, terminals: [{ id: 't7', label: 'SSH', ip: '194.163.128.42', port: 22, protocol: 'SSH', lastAccess: new Date(), isActive: false }], tags: ['backup'], os: 'Ubuntu 22.04', createdAt: new Date('2023-01-05'), notes: 'Em manutenção programada' },
+];
+
+const mockServices: HostingService[] = [
+  { id: 'svc-001', name: 'empresa.com.br', type: 'domain', provider: 'Registro.br', status: 'active', cost: { amount: 40, cycle: 'annually', nextBilling: new Date('2025-11-01') } },
+  { id: 'svc-002', name: 'Cloudflare Pro', type: 'cdn', provider: 'Cloudflare', status: 'active', cost: { amount: 200, cycle: 'monthly', nextBilling: new Date('2025-02-01') } },
+  { id: 'svc-003', name: 'Google Workspace', type: 'email', provider: 'Google', status: 'active', cost: { amount: 480, cycle: 'monthly', nextBilling: new Date('2025-02-01') } },
+  { id: 'svc-004', name: 'Wildcard SSL', type: 'ssl', provider: 'ZeroSSL', status: 'expiring', cost: { amount: 290, cycle: 'annually', nextBilling: new Date('2025-02-15') } },
+  { id: 'svc-005', name: 'Backblaze B2', type: 'storage', provider: 'Backblaze', status: 'active', cost: { amount: 95, cycle: 'monthly', nextBilling: new Date('2025-02-01') } },
+  { id: 'svc-006', name: 'PlanetScale', type: 'database', provider: 'PlanetScale', status: 'active', cost: { amount: 390, cycle: 'monthly', nextBilling: new Date('2025-02-01') } },
+  { id: 'svc-007', name: 'Better Uptime', type: 'monitoring', provider: 'Better Stack', status: 'active', cost: { amount: 120, cycle: 'monthly', nextBilling: new Date('2025-02-01') } },
+];
+
+const costTrendData = [
+  { month: 'Jan', servers: 1850, services: 1200, total: 3050 },
+  { month: 'Feb', servers: 1920, services: 1250, total: 3170 },
+  { month: 'Mar', servers: 2100, services: 1300, total: 3400 },
+  { month: 'Apr', servers: 2050, services: 1350, total: 3400 },
+  { month: 'May', servers: 2200, services: 1400, total: 3600 },
+  { month: 'Jun', servers: 2350, services: 1450, total: 3800 },
+  { month: 'Jul', servers: 2400, services: 1500, total: 3900 },
+  { month: 'Aug', servers: 2480, services: 1550, total: 4030 },
+  { month: 'Sep', servers: 2520, services: 1580, total: 4100 },
+  { month: 'Oct', servers: 2600, services: 1620, total: 4220 },
+  { month: 'Nov', servers: 2680, services: 1650, total: 4330 },
+  { month: 'Dec', servers: 2740, services: 1700, total: 4440 },
+];
+
+const formatBRL = (n: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0 }).format(n);
+const formatDate = (d: Date) => new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' }).format(d);
+const daysUntil = (d: Date): number => Math.ceil((d.getTime() - Date.now()) / 86_400_000);
+const usagePct = (u: ResourceUsage) => (u.used / u.total) * 100;
+
+const StatusDot: React.FC<{ status: ServerStatus; colors: typeof darkColors }> = ({ status, colors }) => {
+  const colorMap: Record<ServerStatus, string> = { online: colors.success, degraded: colors.warning, maintenance: colors.info, offline: colors.error };
+  return <span style={{ width: 8, height: 8, borderRadius: '50%', background: colorMap[status], animation: status === 'online' ? 'pulse 2s ease-in-out infinite' : 'none' }} />;
+};
+
+const StatusBadge: React.FC<{ status: ServerStatus | HostingService['status']; colors: typeof darkColors }> = ({ status, colors }) => {
+  const map: Record<string, { bg: string; color: string; label: string }> = {
+    online: { bg: `${colors.success}20`, color: colors.success, label: 'Online' },
+    active: { bg: `${colors.success}20`, color: colors.success, label: 'Ativo' },
+    degraded: { bg: `${colors.warning}20`, color: colors.warning, label: 'Degradado' },
+    maintenance: { bg: `${colors.info}20`, color: colors.info, label: 'Manutenção' },
+    offline: { bg: `${colors.error}20`, color: colors.error, label: 'Offline' },
+    expiring: { bg: `${colors.warning}20`, color: colors.warning, label: 'Expirando' },
+    expired: { bg: `${colors.error}20`, color: colors.error, label: 'Expirado' },
+  };
+  const s = map[status] || map.offline;
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600, background: s.bg, color: s.color }}>
+      <StatusDot status={status as ServerStatus} colors={colors} />{s.label}
+    </span>
+  );
+};
+
+const UsageBar: React.FC<{ used: number; total: number; colors: typeof darkColors; showLabel?: boolean }> = ({ used, total, colors, showLabel }) => {
+  const pct = usagePct({ used, total });
+  const color = pct > 80 ? colors.error : pct > 60 ? colors.warning : colors.success;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ width: 60, height: 4, background: colors.borderLight, borderRadius: 2, overflow: 'hidden' }}>
+        <div style={{ width: `${pct}%`, height: '100%', background: color, transition: 'width 0.8s ease-out' }} />
+      </div>
+      {showLabel && <span style={{ fontSize: 11, color, fontWeight: 500, minWidth: 32 }}>{Math.round(pct)}%</span>}
+    </div>
+  );
+};
+
+const CopyButton: React.FC<{ value: string; label: string; colors: typeof darkColors }> = ({ value, label, colors }) => {
+  const [copied, setCopied] = useState(false);
+  const copy = useCallback(() => { navigator.clipboard.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 2000); }, [value]);
+  return (
+    <button onClick={copy} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 8px', borderRadius: 6, background: colors.bgTertiary, border: 'none', fontSize: 11, color: copied ? colors.success : colors.textMuted, cursor: 'pointer' }}>
+      {copied ? <><svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke={colors.success} strokeWidth={2}><path d="M20 6L9 17l-5-5" /></svg>Copiado</> : <><svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>{label}</>}
+    </button>
+  );
+};
+
+const ServiceIcon: React.FC<{ type: HostingService['type']; colors: typeof darkColors }> = ({ type, colors }) => {
+  const icons: Record<string, React.ReactNode> = {
+    domain: <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={colors.info} strokeWidth={1.5}><circle cx="12" cy="12" r="10" /><path d="M2 12h20M12 2a10 10 0 0110 10" /></svg>,
+    cdn: <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={colors.info} strokeWidth={1.5}><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" /></svg>,
+    email: <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={colors.info} strokeWidth={1.5}><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg>,
+    ssl: <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={colors.info} strokeWidth={1.5}><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></svg>,
+    storage: <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={colors.info} strokeWidth={1.5}><ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" /><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" /></svg>,
+    database: <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={colors.info} strokeWidth={1.5}><ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" /><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" /></svg>,
+    monitoring: <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={colors.info} strokeWidth={1.5}><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg>,
+  };
+  return <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 8, borderRadius: 8, background: colors.info + '20' }}>{icons[type]}</span>;
+};
+
+const HorizontalBar: React.FC<{ label: string; value: number; max: number; colors: typeof darkColors; color?: string }> = ({ label, value, max, colors, color }) => {
+  const pct = max > 0 ? (value / max) * 100 : 0;
+  const barColor = color || colors.success;
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+        <span style={{ fontSize: 13, color: colors.text }}>{label}</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: barColor }}>{formatBRL(value)}</span>
+      </div>
+      <div style={{ height: 8, background: colors.borderLight, borderRadius: 4, overflow: 'hidden' }}>
+        <div style={{ width: `${pct}%`, height: '100%', background: barColor, borderRadius: 4, transition: 'width 0.6s ease-out' }} />
+      </div>
+    </div>
+  );
+};
+
+const CostCard: React.FC<{ title: string; value: string; subtitle?: string; status?: 'ok' | 'warning' | 'critical'; colors: typeof darkColors }> = ({ title, value, subtitle, status, colors }) => {
+  const statusColors = { ok: colors.success, warning: colors.warning, critical: colors.error };
+  return (
+    <div style={{ padding: 20, background: colors.bgSecondary, borderRadius: 12, border: `1px solid ${colors.borderLight}` }}>
+      <div style={{ fontSize: 11, fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>{title}</div>
+      <div style={{ fontSize: 24, fontWeight: 700, color: status ? statusColors[status] : colors.text }}>{value}</div>
+      {subtitle && <div style={{ fontSize: 12, color: colors.textMuted, marginTop: 4 }}>{subtitle}</div>}
+    </div>
+  );
+};
+
+const SectionCard: React.FC<{ title: string; subtitle?: string; action?: React.ReactNode; children: React.ReactNode; colors: typeof darkColors }> = ({ title, subtitle, action, children, colors }) => (
+  <div style={{ background: colors.bgSecondary, borderRadius: 16, border: `1px solid ${colors.borderLight}`, overflow: 'hidden' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: `1px solid ${colors.borderLight}` }}>
+      <div>
+        <h3 style={{ fontSize: 14, fontWeight: 600, color: colors.text, margin: 0 }}>{title}</h3>
+        {subtitle && <p style={{ fontSize: 12, color: colors.textMuted, margin: '4px 0 0' }}>{subtitle}</p>}
+      </div>
+      {action}
+    </div>
+    <div style={{ padding: 20 }}>{children}</div>
+  </div>
+);
+
+const AlertCard: React.FC<{ type: 'warning' | 'error' | 'info'; server: Server; message: string; colors: typeof darkColors }> = ({ type, server, message, colors }) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const colors_map = {
+    warning: { bg: colors.warning + '12', border: colors.warning + '40', icon: colors.warning, hover: colors.warning + '20' },
+    error: { bg: colors.error + '12', border: colors.error + '40', icon: colors.error, hover: colors.error + '20' },
+    info: { bg: colors.info + '12', border: colors.info + '40', icon: colors.info, hover: colors.info + '20' },
+  };
+  const c = colors_map[type];
+  
+  return (
+    <div 
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      style={{ 
+        padding: 16, 
+        background: isHovered ? c.hover : c.bg, 
+        borderRadius: 12, 
+        border: `1px solid ${isHovered ? c.border : c.border}`, 
+        display: 'flex', 
+        alignItems: 'center', 
+        gap: 14,
+        cursor: 'pointer',
+        transition: 'all 0.2s ease',
+        transform: isHovered ? 'translateY(-2px)' : 'none',
+        boxShadow: isHovered ? `0 4px 12px ${c.icon}30` : 'none',
+      }}
+    >
+      <div style={{ color: c.icon, flexShrink: 0 }}>
+        {type === 'warning' && (
+          <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01" />
+          </svg>
+        )}
+        {type === 'error' && (
+          <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+            <circle cx="12" cy="12" r="10" />
+            <line x1="15" y1="9" x2="9" y2="15" />
+            <line x1="9" y1="9" x2="15" y2="15" />
+          </svg>
+        )}
+        {type === 'info' && (
+          <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="16" x2="12" y2="12" />
+            <line x1="12" y1="8" x2="12.01" y2="8" />
+          </svg>
+        )}
+      </div>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: c.icon, marginBottom: 4 }}>{server.name}</div>
+        <div style={{ fontSize: 12, color: colors.textMuted }}>{message}</div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+        <StatusDot status={server.status} colors={colors} />
+        <span style={{ fontSize: 10, color: colors.textMuted }}>{server.status}</span>
+      </div>
+    </div>
+  );
+};
+
+const HoverCard: React.FC<{ children: React.ReactNode; colors: typeof darkColors }> = ({ children, colors }) => {
+  const [isHovered, setIsHovered] = useState(false);
+  
+  return (
+    <div
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      style={{
+        background: colors.bgSecondary,
+        borderRadius: 16,
+        border: `1px solid ${isHovered ? colors.accent + '60' : colors.borderLight}`,
+        overflow: 'hidden',
+        transition: 'all 0.25s ease',
+        transform: isHovered ? 'translateY(-4px)' : 'none',
+        boxShadow: isHovered ? `0 8px 24px ${colors.accent}25` : 'none',
+      }}
+    >
+      {children}
+    </div>
+  );
+};
+
+const DonutChartLarge: React.FC<{ data: { label: string; value: number; color: string }[]; size?: number; colors: typeof darkColors }> = ({ data, size = 160, colors }) => {
+  const total = data.reduce((acc, d) => acc + d.value, 0);
+  let cumulative = 0;
+  const innerRadius = (size / 2 - 4) - 12;
+  
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 20, overflow: 'visible' }}>
+      <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ overflow: 'visible' }}>
+          <circle cx={size/2} cy={size/2} r={size/2 - 4} fill="none" stroke={colors.borderLight} strokeWidth="12" />
+          {data.map((item, i) => {
+            const startAngle = (cumulative / total) * 360;
+            const endAngle = ((cumulative + item.value) / total) * 360;
+            const radius = size / 2 - 4;
+            const startRad = ((startAngle - 90) * Math.PI) / 180;
+            const endRad = ((endAngle - 90) * Math.PI) / 180;
+            const x1 = size / 2 + radius * Math.cos(startRad);
+            const y1 = size / 2 + radius * Math.sin(startRad);
+            const x2 = size / 2 + radius * Math.cos(endRad);
+            const y2 = size / 2 + radius * Math.sin(endRad);
+            const largeArc = item.value / total > 0.5 ? 1 : 0;
+            cumulative += item.value;
+            
+            return (
+              <path
+                key={i}
+                d={`M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2}`}
+                fill="none"
+                stroke={item.color}
+                strokeWidth="12"
+                strokeLinecap="round"
+              />
+            );
+          })}
+          <circle cx={size/2} cy={size/2} r={innerRadius} fill={colors.bgSecondary} />
+        </svg>
+        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
+          <div style={{ fontSize: 20, fontWeight: 700, color: colors.text }}>{formatBRL(total)}</div>
+          <div style={{ fontSize: 10, color: colors.textMuted }}>Total</div>
+        </div>
+      </div>
+      <div style={{ flex: 1 }}>
+        {data.map((item, i) => {
+          const pct = ((item.value / total) * 100).toFixed(1);
+          return (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+              <div style={{ width: 10, height: 10, borderRadius: 3, background: item.color }} />
+              <span style={{ fontSize: 13, color: colors.text, flex: 1 }}>{item.label}</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: item.color }}>{pct}%</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+const CostTrendChart: React.FC<{ data: { month: string; servers: number; services: number; total: number }[]; colors: typeof darkColors }> = ({ data, colors }) => {
+  const max = Math.max(...data.map(d => d.total));
+  const min = Math.min(...data.map(d => d.total));
+  const range = max - min || 1;
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  
+  const totalPoints = data.map((d, i) => {
+    const x = (i / (data.length - 1)) * 100;
+    const y = 100 - ((d.total - min) / range) * 100;
+    return `${x},${y}`;
+  }).join(' ');
+
+  const serversPoints = data.map((d, i) => {
+    const x = (i / (data.length - 1)) * 100;
+    const y = 100 - ((d.servers - min) / range) * 100;
+    return `${x},${y}`;
+  }).join(' ');
+
+  const servicesPoints = data.map((d, i) => {
+    const x = (i / (data.length - 1)) * 100;
+    const y = 100 - ((d.services - min) / range) * 100;
+    return `${x},${y}`;
+  }).join(' ');
+
+  const hoveredData = hoveredIndex !== null ? data[hoveredIndex] : null;
+  const prevData = hoveredIndex !== null && hoveredIndex > 0 ? data[hoveredIndex - 1] : null;
+  const variation = hoveredData && prevData ? ((hoveredData.total - prevData.total) / prevData.total * 100).toFixed(1) : null;
+  const hoverX = hoveredIndex !== null ? (hoveredIndex / (data.length - 1)) * 100 : 0;
+  const hoverY = hoveredData ? 100 - ((hoveredData.total - min) / range) * 100 : 0;
+  
+  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    const svg = e.currentTarget;
+    const rect = svg.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const relativeX = (x / rect.width) * 100;
+    const dataIndex = Math.round((relativeX / 100) * (data.length - 1));
+    if (dataIndex >= 0 && dataIndex < data.length) {
+      setHoveredIndex(dataIndex);
+    }
+  };
+  
+  return (
+    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ width: '100%', flex: 1, position: 'relative', minHeight: 160 }}>
+        <svg 
+          width="100%" 
+          height="100%" 
+          viewBox="0 0 100 100" 
+          preserveAspectRatio="none" 
+          style={{ overflow: 'visible' }}
+          onMouseMove={handleMouseMove}
+          onMouseLeave={() => setHoveredIndex(null)}
+        >
+          <defs>
+            <linearGradient id="costAreaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor={colors.success} stopOpacity="0.3" />
+              <stop offset="100%" stopColor={colors.success} stopOpacity="0" />
+            </linearGradient>
+            <filter id="costGlow">
+              <feGaussianBlur stdDeviation="0.6" result="coloredBlur"/>
+              <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+          </defs>
+          {[25, 50, 75].map(y => (
+            <line key={y} x1="0" y1={y} x2="100" y2={y} stroke={colors.border} strokeWidth="0.15" strokeDasharray="0.8,0.8" />
+          ))}
+          <polygon points={`0,100 ${totalPoints} 100,100`} fill="url(#costAreaGradient)" />
+          <polyline points={serversPoints} fill="none" stroke={colors.info} strokeWidth="0.6" vectorEffect="non-scaling-stroke" strokeDasharray="2,1" opacity={0.35} />
+          <polyline points={servicesPoints} fill="none" stroke={colors.warning} strokeWidth="0.6" vectorEffect="non-scaling-stroke" strokeDasharray="2,1" opacity={0.35} />
+          <polyline points={totalPoints} fill="none" stroke={colors.success} strokeWidth="1.8" vectorEffect="non-scaling-stroke" filter="url(#costGlow)" strokeLinecap="round" strokeLinejoin="round" />
+          
+          {hoveredData && hoveredIndex !== null && (
+            <>
+              <line x1={hoverX} y1="0" x2={hoverX} y2="100" stroke={colors.success} strokeWidth="0.4" strokeDasharray="2,2" opacity={0.6} />
+              <circle cx={hoverX} cy={hoverY} r="4" fill={colors.success} opacity="0.3">
+                <animate attributeName="r" values="3;6;3" dur="1.5s" repeatCount="indefinite" />
+                <animate attributeName="opacity" values="0.3;0.1;0.3" dur="1.5s" repeatCount="indefinite" />
+              </circle>
+            </>
+          )}
+        </svg>
+        
+        {hoveredData && hoveredIndex !== null && (
+          <div style={{
+            position: 'absolute',
+            bottom: 60,
+            left: hoveredIndex > data.length / 2 ? 'auto' : `${hoveredIndex * (100 / (data.length - 1))}%`,
+            right: hoveredIndex > data.length / 2 ? `${(data.length - 1 - hoveredIndex) * (100 / (data.length - 1))}%` : 'auto',
+            transform: 'translateX(-50%)',
+            background: colors.bgSecondary,
+            border: `1px solid ${colors.border}`,
+            borderRadius: 8,
+            padding: '8px 12px',
+            minWidth: 130,
+            boxShadow: `0 4px 16px rgba(0,0,0,0.25)`,
+            zIndex: 10,
+            pointerEvents: 'none',
+          }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: colors.text, marginBottom: 4 }}>{hoveredData.month}</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: colors.success }}>{formatBRL(hoveredData.total)}</div>
+            {variation && (
+              <div style={{ fontSize: 10, color: Number(variation) > 0 ? colors.warning : colors.success, marginTop: 2 }}>
+                {Number(variation) > 0 ? '+' : ''}{variation}% vs anterior
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: colors.bgTertiary, borderRadius: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <div style={{ width: 8, height: 3, background: colors.success, borderRadius: 2 }} />
+            <span style={{ fontSize: 9, color: colors.textMuted }}>Total</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <div style={{ width: 8, height: 2, background: colors.info, opacity: 0.4 }} />
+            <span style={{ fontSize: 9, color: colors.textMuted }}>Srv</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <div style={{ width: 8, height: 2, background: colors.warning, opacity: 0.4 }} />
+            <span style={{ fontSize: 9, color: colors.textMuted }}>Svc</span>
+          </div>
+        </div>
+        <div style={{ fontSize: 9, color: colors.textMuted }}>
+          {formatBRL(min)} — {formatBRL(max)}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export const ServersPage: React.FC = () => {
+  const { theme } = useTheme();
+  const colors = theme === 'dark' ? darkColors : lightColors;
+
+  const [loading, setLoading] = useState(true);
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string[]>(['all']);
+  const [providerFilter, setProviderFilter] = useState<string[]>(['all']);
+  const [typeFilter, setTypeFilter] = useState<string[]>(['all']);
+  const [activeTab, setActiveTab] = useState<'overview' | 'servers' | 'services' | 'costs'>('overview');
+
+  const statusOptions = [
+    { value: 'online', label: 'Online' },
+    { value: 'offline', label: 'Offline' },
+    { value: 'maintenance', label: 'Manutenção' },
+    { value: 'degraded', label: 'Degradado' },
+  ];
+
+  const providerOptions = [
+    { value: 'Hetzner', label: 'Hetzner' },
+    { value: 'DigitalOcean', label: 'DigitalOcean' },
+    { value: 'AWS', label: 'AWS' },
+    { value: 'Contabo', label: 'Contabo' },
+  ];
+
+  const typeOptions = [
+    { value: 'vps', label: 'VPS' },
+    { value: 'dedicated', label: 'Dedicado' },
+    { value: 'cloud', label: 'Cloud' },
+  ];
+
+  const serversMonthlyCost = mockServers.reduce((a, s) => a + s.cost.amount, 0);
+  const servicesMonthlyCost = mockServices.reduce((a, s) => a + s.cost.amount, 0);
+  const totalMonthlyCost = serversMonthlyCost + servicesMonthlyCost;
+  const totalAnnualCost = mockServers.reduce((a, s) => a + s.cost.annualTotal, 0) + mockServices.reduce((a, s) => a + (s.cost.cycle === 'monthly' ? s.cost.amount * 12 : s.cost.amount), 0);
+  const avgUptime = mockServers.reduce((a, s) => a + s.usage.uptime, 0) / mockServers.length;
+  const budgetLimit = 5000;
+  const budgetUsage = (totalMonthlyCost / budgetLimit) * 100;
+
+  const costByProvider = useMemo(() => {
+    const providers: Record<string, number> = {};
+    mockServers.forEach(s => { providers[s.provider] = (providers[s.provider] || 0) + s.cost.amount; });
+    return Object.entries(providers).sort((a, b) => b[1] - a[1]);
+  }, []);
+
+  const costByServiceType = useMemo(() => {
+    const types: Record<string, number> = {};
+    mockServices.forEach(s => { types[s.type] = (types[s.type] || 0) + s.cost.amount; });
+    return Object.entries(types).sort((a, b) => b[1] - a[1]);
+  }, []);
+
+  const projectedCost3Months = totalMonthlyCost * 3 * 1.08;
+  const projectedCost6Months = totalMonthlyCost * 6 * 1.15;
+
+  const allUpcomingBills = [
+    ...mockServers.map(s => ({ name: s.name, amount: s.cost.amount, date: s.cost.nextBilling })),
+    ...mockServices.map(s => ({ name: s.name, amount: s.cost.amount, date: s.cost.nextBilling })),
+  ].sort((a, b) => a.date.getTime() - b.date.getTime());
+
+  const infraCards = [
+    { id: 'monthly', label: 'CUSTO MENSAL', value: totalMonthlyCost, unit: 'currency' as const, variation: 0 },
+    { id: 'annual', label: 'CUSTO ANUAL', value: totalAnnualCost, unit: 'currency' as const, variation: 0 },
+    { id: 'online', label: 'SERVIDORES ONLINE', value: mockServers.filter(s => s.status === 'online').length, unit: 'number' as const, variation: 0 },
+    { id: 'uptime', label: 'UPTIME MÉDIO', value: Math.round(avgUptime), unit: 'percentage' as const, variation: 0 },
+  ];
+
+  const filteredServers = useMemo(() => mockServers.filter(s => {
+    const matchesSearch = search === '' || s.name.toLowerCase().includes(search.toLowerCase()) || s.hostname.includes(search) || s.ip.public.includes(search);
+    const matchesStatus = statusFilter.includes('all') || statusFilter.includes(s.status);
+    const matchesProvider = providerFilter.includes('all') || providerFilter.includes(s.provider);
+    const matchesType = typeFilter.includes('all') || typeFilter.includes(s.type);
+    return matchesSearch && matchesStatus && matchesProvider && matchesType;
+  }), [search, statusFilter, providerFilter, typeFilter]);
+
+  useEffect(() => { const t = setTimeout(() => setLoading(false), 1200); return () => clearTimeout(t); }, []);
+
+  const setPage = useCallback(() => {}, []);
+
+  const tabs = [
+    { id: 'overview', label: 'Visão Geral' },
+    { id: 'servers', label: 'Servidores' },
+    { id: 'services', label: 'Serviços' },
+    { id: 'costs', label: 'Custos' },
+  ];
+
+  const providerChartData = costByProvider.map(([provider, cost], i) => ({
+    label: provider,
+    value: cost,
+    color: i === 0 ? colors.success : i === 1 ? colors.warning : colors.info,
+  }));
+
+  const serviceTypeChartData = costByServiceType.map(([type, cost], i) => {
+    const labels: Record<string, string> = { domain: 'Domínios', cdn: 'CDN', email: 'Email', ssl: 'SSL', storage: 'Storage', database: 'DB', monitoring: 'Monitor' };
+    return { label: labels[type] || type, value: cost, color: i === 0 ? colors.accent : colors.info };
+  });
+
+  const alertServers = mockServers.filter(s => 
+    s.status === 'degraded' || s.status === 'maintenance' || usagePct(s.usage.cpu) < 30 || usagePct(s.usage.ram) < 40 || usagePct(s.usage.cpu) > 80
+  );
+
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 20, padding: 4, background: colors.bgTertiary, borderRadius: 10, width: 'fit-content' }}>
+        {tabs.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as typeof activeTab)}
+            style={{
+              padding: '8px 16px',
+              borderRadius: 8,
+              border: 'none',
+              background: activeTab === tab.id ? colors.bgSecondary : 'transparent',
+              color: activeTab === tab.id ? colors.text : colors.textMuted,
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              boxShadow: activeTab === tab.id ? '0 2px 8px rgba(0,0,0,0.1)' : 'none',
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {activeTab === 'overview' && (
+          <>
+            <KPICards cards={infraCards} loading={loading} />
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+              <CostCard title="ORÇAMENTO MENSAL" value={formatBRL(budgetLimit)} subtitle={`${budgetUsage.toFixed(0)}% utilizado`} status={budgetUsage > 90 ? 'critical' : budgetUsage > 70 ? 'warning' : 'ok'} colors={colors} />
+              <CostCard title="PROJEÇÃO 3 MESES" value={formatBRL(projectedCost3Months)} subtitle="+8% crescimento" colors={colors} />
+              <CostCard title="PROJEÇÃO 6 MESES" value={formatBRL(projectedCost6Months)} subtitle="+15% crescimento" colors={colors} />
+              <CostCard title="ALERTAS ATIVOS" value={alertServers.length.toString()} subtitle="Atenção necessária" status={alertServers.length > 0 ? 'warning' : 'ok'} colors={colors} />
+            </div>
+
+            {alertServers.length > 0 && (
+              <SectionCard title="Alertas & Monitoramento" subtitle="Servidores precisam de atenção" colors={colors}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: 12 }}>
+                  {alertServers.map(server => {
+                    let type: 'warning' | 'error' | 'info' = 'info';
+                    let reason = '';
+                    if (server.status === 'degraded') { type = 'info'; reason = 'Performance degradada'; }
+                    else if (server.status === 'maintenance') { type = 'info'; reason = 'Em manutenção'; }
+                    else if (usagePct(server.usage.cpu) < 30 || usagePct(server.usage.ram) < 40) { type = 'warning'; reason = `Subutilizado - CPU: ${Math.round(usagePct(server.usage.cpu))}% | RAM: ${Math.round(usagePct(server.usage.ram))}%`; }
+                    else if (usagePct(server.usage.cpu) > 80) { type = 'error'; reason = `Alto uso de CPU: ${Math.round(usagePct(server.usage.cpu))}%`; }
+                    return <AlertCard key={server.id} type={type} server={server} message={reason} colors={colors} />;
+                  })}
+                </div>
+              </SectionCard>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
+              <HoverCard colors={colors}>
+                <SectionCard title="Custo por Provider" subtitle="Infraestrutura mensal" colors={colors}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
+                    <DonutChartLarge data={providerChartData} size={140} colors={colors} />
+                    <div style={{ width: '100%' }}>
+                      {costByProvider.map(([provider, cost], i) => (
+                        <HorizontalBar key={provider} label={provider} value={cost} max={costByProvider[0]?.[1] || 1} colors={colors} color={providerChartData[i]?.color} />
+                      ))}
+                    </div>
+                  </div>
+                </SectionCard>
+              </HoverCard>
+
+              <HoverCard colors={colors}>
+                <SectionCard title="Custo por Tipo de Serviço" subtitle="Serviços recorrentes" colors={colors}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
+                    <DonutChartLarge data={serviceTypeChartData} size={140} colors={colors} />
+                    <div style={{ width: '100%' }}>
+                      {costByServiceType.map(([type, cost], i) => {
+                        const labels: Record<string, string> = { domain: 'Domínios', cdn: 'CDN', email: 'Email', ssl: 'SSL', storage: 'Storage', database: 'Database', monitoring: 'Monitoring' };
+                        return <HorizontalBar key={type} label={labels[type] || type} value={cost} max={costByServiceType[0]?.[1] || 1} colors={colors} color={serviceTypeChartData[i]?.color} />;
+                      })}
+                    </div>
+                  </div>
+                </SectionCard>
+              </HoverCard>
+            </div>
+
+            <SectionCard title="Projeção de Custos" subtitle="Estimativas baseadas em crescimento histórico de 8%/ano" colors={colors}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+              <MultiSelectFilter label="Status" options={statusOptions} selected={statusFilter} onChange={(v: string[]) => { setStatusFilter(v); setPage(); }} colors={colors} />
+              <MultiSelectFilter label="Provider" options={providerOptions} selected={providerFilter} onChange={(v: string[]) => { setProviderFilter(v); setPage(); }} colors={colors} />
+              <MultiSelectFilter label="Tipo" options={typeOptions} selected={typeFilter} onChange={(v: string[]) => { setTypeFilter(v); setPage(); }} colors={colors} />
+              <div style={{ flex: 1 }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px', background: colors.bgTertiary, borderRadius: 8, border: `1px solid ${colors.borderLight}`, width: 260 }}>
+                <IconSearch size={16} color={colors.textMuted} />
+                <input type="text" placeholder="Buscar..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(); }}
+                  style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: 13, color: colors.text, width: '100%' }} />
+              </div>
+            </div>
+
+            {loading ? (
+              <PlacesLoading rows={5} />
+            ) : (
+              <div style={{ background: colors.bgSecondary, borderRadius: 12, border: `1px solid ${colors.borderLight}`, overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ background: colors.bgTertiary }}>
+                      {['Status', 'Nome', 'Tipo', 'Provider', 'IP', 'CPU', 'RAM', 'Storage', 'Custo', 'Próxima', ''].map(h => (
+                        <th key={h} style={{ padding: '12px 16px', fontSize: 11, fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left', borderBottom: `1px solid ${colors.borderLight}` }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredServers.map(server => (
+                      <React.Fragment key={server.id}>
+                        <tr onClick={() => setExpandedRow(expandedRow === server.id ? null : server.id)} style={{ cursor: 'pointer', borderLeft: expandedRow === server.id ? `2px solid ${colors.accent}` : '2px solid transparent' }}>
+                          <td style={{ padding: '12px 16px', borderBottom: `1px solid ${colors.borderLight}` }}><StatusDot status={server.status} colors={colors} /></td>
+                          <td style={{ padding: '12px 16px', borderBottom: `1px solid ${colors.borderLight}`, fontWeight: 600, color: colors.text }}>{server.name}</td>
+                          <td style={{ padding: '12px 16px', borderBottom: `1px solid ${colors.borderLight}`, color: colors.textMuted, textTransform: 'capitalize' }}>{server.type}</td>
+                          <td style={{ padding: '12px 16px', borderBottom: `1px solid ${colors.borderLight}`, color: colors.textMuted }}>{server.provider}</td>
+                          <td style={{ padding: '12px 16px', borderBottom: `1px solid ${colors.borderLight}`, fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: colors.text }}>{server.ip.public}</td>
+                          <td style={{ padding: '12px 16px', borderBottom: `1px solid ${colors.borderLight}` }}><UsageBar used={server.usage.cpu.used} total={server.usage.cpu.total} colors={colors} showLabel /></td>
+                          <td style={{ padding: '12px 16px', borderBottom: `1px solid ${colors.borderLight}` }}><UsageBar used={server.usage.ram.used} total={server.usage.ram.total} colors={colors} showLabel /></td>
+                          <td style={{ padding: '12px 16px', borderBottom: `1px solid ${colors.borderLight}` }}><UsageBar used={server.usage.storage.used} total={server.usage.storage.total} colors={colors} showLabel /></td>
+                          <td style={{ padding: '12px 16px', borderBottom: `1px solid ${colors.borderLight}`, fontWeight: 600, color: colors.success }}>{formatBRL(server.cost.amount)}</td>
+                          <td style={{ padding: '12px 16px', borderBottom: `1px solid ${colors.borderLight}`, fontSize: 12, color: colors.textMuted }}>{formatDate(server.cost.nextBilling)}</td>
+                          <td style={{ padding: '12px 16px', borderBottom: `1px solid ${colors.borderLight}` }}>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              <button style={{ padding: 6, border: 'none', borderRadius: 6, background: 'transparent', color: colors.textMuted, cursor: 'pointer' }}><svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><rect x="2" y="4" width="20" height="16" rx="2" /><path d="M6 8l4 4-4 4M14 8l-4 4 4 4" /></svg></button>
+                              <button style={{ padding: 6, border: 'none', borderRadius: 6, background: 'transparent', color: colors.textMuted, cursor: 'pointer' }}><svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg></button>
+                            </div>
+                          </td>
+                        </tr>
+                        {expandedRow === server.id && (
+                          <tr>
+                            <td colSpan={11} style={{ padding: 24, background: colors.bgTertiary, borderBottom: `1px solid ${colors.borderLight}` }}>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+                                <div>
+                                  <div style={{ fontSize: 11, color: colors.textMuted, textTransform: 'uppercase', marginBottom: 12 }}>Terminais de Acesso</div>
+                                  {server.terminals.map(t => (
+                                    <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: `1px solid ${colors.borderLight}` }}>
+                                      <span style={{ padding: '2px 6px', borderRadius: 4, fontSize: 10, fontWeight: 600, background: colors.info + '20', color: colors.info }}>{t.protocol}</span>
+                                      <span style={{ fontSize: 12, color: colors.textMuted }}>{t.label}</span>
+                                      <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: colors.text }}>{t.ip}:{t.port}</span>
+                                      <CopyButton value={`ssh ${t.ip} -p ${t.port}`} label="Copiar" colors={colors} />
+                                    </div>
+                                  ))}
+                                </div>
+                                <div>
+                                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                                    <div><div style={{ fontSize: 11, color: colors.textMuted }}>Hostname</div><div style={{ fontSize: 12, color: colors.text, fontFamily: "'JetBrains Mono', monospace" }}>{server.hostname}</div></div>
+                                    <div><div style={{ fontSize: 11, color: colors.textMuted }}>OS</div><div style={{ fontSize: 12, color: colors.text }}>{server.os}</div></div>
+                                    <div><div style={{ fontSize: 11, color: colors.textMuted }}>Uptime</div><div style={{ fontSize: 12, color: colors.success, fontWeight: 600 }}>{server.usage.uptime}%</div></div>
+                                    <div><div style={{ fontSize: 11, color: colors.textMuted }}>Região</div><div style={{ fontSize: 12, color: colors.text }}>{server.region}</div></div>
+                                  </div>
+                                  <div style={{ display: 'flex', gap: 8 }}>{server.tags.map(tag => <span key={tag} style={{ padding: '4px 8px', borderRadius: 4, fontSize: 11, background: colors.borderLight, color: colors.textMuted }}>#{tag}</span>)}</div>
+                                  {server.notes && <div style={{ marginTop: 12, padding: 12, borderRadius: 8, background: colors.warning + '15', border: `1px solid ${colors.warning}`, fontSize: 12, color: colors.warning }}>{server.notes}</div>}
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'services' && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
+            {mockServices.map(service => {
+              const days = daysUntil(service.cost.nextBilling);
+              const isExpiring = service.status === 'expiring' || (days > 0 && days < 30);
+              return (
+                <SectionCard key={service.id} title={service.name} subtitle={service.provider} colors={colors}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
+                    <ServiceIcon type={service.type} colors={colors} />
+                    <div style={{ flex: 1 }}>
+                      <StatusBadge status={service.status} colors={colors} />
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                    <div>
+                      <div style={{ fontSize: 24, fontWeight: 700, color: colors.text }}>{formatBRL(service.cost.amount)}</div>
+                      <div style={{ fontSize: 11, color: colors.textMuted }}>/{service.cost.cycle === 'monthly' ? 'mês' : 'ano'}</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: isExpiring ? colors.warning : colors.success }}>{days > 0 ? `${days}d` : 'vencido'}</div>
+                      <div style={{ fontSize: 11, color: colors.textMuted }}>até {formatDate(service.cost.nextBilling)}</div>
+                    </div>
+                  </div>
+                </SectionCard>
+              );
+            })}
+          </div>
+        )}
+
+        {activeTab === 'costs' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+              <CostCard title="CUSTO MENSAL" value={formatBRL(totalMonthlyCost)} subtitle={`${mockServers.length} srv + ${mockServices.length} svc`} colors={colors} />
+              <CostCard title="CUSTO ANUAL" value={formatBRL(totalAnnualCost)} subtitle="Projeção anual" colors={colors} />
+              <CostCard title="ORÇAMENTO" value={formatBRL(budgetLimit)} subtitle={`${budgetUsage.toFixed(0)}% usado`} status={budgetUsage > 90 ? 'critical' : budgetUsage > 70 ? 'warning' : 'ok'} colors={colors} />
+              <CostCard title="MÉDIA/DIA" value={formatBRL(Math.round(totalMonthlyCost / 30))} subtitle="Custo diário" colors={colors} />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <SectionCard title="Tendência de Custos" subtitle="Últimos 12 meses" colors={colors}>
+                <CostTrendChart data={costTrendData} colors={colors} />
+              </SectionCard>
+
+              <SectionCard title="Próximas Faturas" subtitle="Próximos 30 dias" colors={colors}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {allUpcomingBills.slice(0, 5).map((bill, i) => {
+                    const days = daysUntil(bill.date);
+                    const isUrgent = days <= 7 && bill.amount > 200;
+                    const isWarning = days <= 14 && days > 7;
+                    return (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 10, background: isUrgent ? colors.error + '08' : isWarning ? colors.warning + '08' : colors.bgTertiary, borderRadius: 8, border: `1px solid ${isUrgent ? colors.error + '20' : isWarning ? colors.warning + '20' : colors.borderLight}` }}>
+                        <div style={{ width: 28, height: 28, borderRadius: 6, background: isUrgent ? colors.error + '15' : isWarning ? colors.warning + '15' : colors.info + '15', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={isUrgent ? colors.error : isWarning ? colors.warning : colors.info} strokeWidth={2}>
+                            <rect x="3" y="4" width="18" height="18" rx="2" />
+                            <line x1="16" y1="2" x2="16" y2="6" />
+                            <line x1="8" y1="2" x2="8" y2="6" />
+                          </svg>
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 12, fontWeight: 500, color: colors.text }}>{bill.name}</div>
+                          <div style={{ fontSize: 10, color: isUrgent ? colors.error : isWarning ? colors.warning : colors.textMuted }}>{days > 0 ? `${days}d` : 'Vencido'}</div>
+                        </div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: isUrgent ? colors.error : colors.text }}>{formatBRL(bill.amount)}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${colors.borderLight}`, display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 10, color: colors.textMuted }}>Total</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: colors.success }}>{formatBRL(allUpcomingBills.slice(0, 5).reduce((a, b) => a + b.amount, 0))}</span>
+                </div>
+              </SectionCard>
+            </div>
+
+            <SectionCard title="Projeção de Custos" subtitle="Estimativas baseadas em crescimento histórico de 8%/ano" colors={colors}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+                <div style={{ padding: 20, background: colors.bgTertiary, borderRadius: 12, textAlign: 'center' }}>
+                  <div style={{ fontSize: 11, color: colors.textMuted, marginBottom: 8 }}>3 MESES</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: colors.text }}>{formatBRL(projectedCost3Months)}</div>
+                  <div style={{ fontSize: 11, color: colors.success, marginTop: 4 }}>+8%</div>
+                </div>
+                <div style={{ padding: 20, background: colors.bgTertiary, borderRadius: 12, textAlign: 'center' }}>
+                  <div style={{ fontSize: 11, color: colors.textMuted, marginBottom: 8 }}>6 MESES</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: colors.text }}>{formatBRL(projectedCost6Months)}</div>
+                  <div style={{ fontSize: 11, color: colors.warning, marginTop: 4 }}>+15%</div>
+                </div>
+                <div style={{ padding: 20, background: colors.bgTertiary, borderRadius: 12, textAlign: 'center' }}>
+                  <div style={{ fontSize: 11, color: colors.textMuted, marginBottom: 8 }}>12 MESES</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: colors.text }}>{formatBRL(totalAnnualCost)}</div>
+                  <div style={{ fontSize: 11, color: colors.textMuted, marginTop: 4 }}>paridade</div>
+                </div>
+              </div>
+            </SectionCard>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default ServersPage;

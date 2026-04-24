@@ -17,6 +17,7 @@ import { UsersPage } from './components/UsersPage';
 import { ProductsPage } from './components/ProductsPage';
 import { OrdersPage } from './components/OrdersPage';
 import { SettingsPage } from './components/SettingsPage';
+import ServersPage from './components/ServersPage';
 import { useRealTimeClock } from './hooks';
 import { darkColors, lightColors } from './types';
 import { mockKPIs, mockChartData, mockOrders, mockTopProducts, mockActivity, mockHeatmap } from './data';
@@ -31,6 +32,20 @@ const globalStyles = `
   #root { min-height: 100vh; }
   input, button { font-family: inherit; }
 `;
+
+const PageLoader: React.FC = () => {
+  const { resolvedTheme } = useTheme();
+  const colors = resolvedTheme === 'dark' ? darkColors : lightColors;
+  
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 80 }}>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ width: 32, height: 32, border: `2px solid ${colors.border}`, borderTop: `2px solid ${colors.accent}`, borderRadius: 6, animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
+        <div style={{ color: colors.textMuted, fontSize: 12 }}>Carregando página...</div>
+      </div>
+    </div>
+  );
+};
 
 const DashboardPage: React.FC = () => {
   const [page, setPage] = useState(0);
@@ -104,6 +119,7 @@ const ProtectedLayout: React.FC = () => {
       case 'users': return <UsersPage dateRange="30d" />;
       case 'products': return <ProductsPage dateRange="30d" />;
       case 'orders': return <OrdersPage dateRange="30d" />;
+      case 'servers': return <ServersPage />;
       case 'settings': return <SettingsPage dateRange="30d" />;
       default: return <DashboardPage />;
     }
@@ -116,13 +132,15 @@ const ProtectedLayout: React.FC = () => {
       case 'users': return { title: 'Usuários', subtitle: 'Gerencie seus clientes' };
       case 'products': return { title: 'Produtos', subtitle: 'Catálogo de produtos' };
       case 'orders': return { title: 'Pedidos', subtitle: 'Gerencie pedidos' };
+      case 'servers': return { title: 'Infraestrutura', subtitle: 'Recursos de hospedagem' };
       case 'settings': return { title: 'Configurações', subtitle: 'Preferências da loja' };
       default: return { title: 'Dashboard', subtitle: '' };
     }
   };
 
   const pageInfo = getPageInfo();
-  const showExport = ['users', 'products', 'orders'].includes(activePage);
+  const showExport = ['users', 'products', 'orders', 'servers'].includes(activePage);
+  const isLazyPage = activePage !== 'dashboard' && activePage !== 'settings' && activePage !== 'servers';
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: colors.bg }}>
@@ -149,7 +167,13 @@ const ProtectedLayout: React.FC = () => {
                 <ExportButton data={mockOrders as unknown as Record<string, unknown>[]} filename={activePage} label="Exportar CSV" />
               )}
             </PageHeader>
-            {renderPage()}
+            {isLazyPage ? (
+              <React.Suspense fallback={<PageLoader />}>
+                {renderPage()}
+              </React.Suspense>
+            ) : (
+              renderPage()
+            )}
           </div>
         </PageTransition>
       </div>
