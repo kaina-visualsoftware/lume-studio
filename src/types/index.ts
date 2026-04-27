@@ -63,6 +63,67 @@ export const statusConfig: Record<Order['status'], { label: string; color: strin
   cancelled: { label: 'Cancelado', color: '#EF4444', bg: 'rgba(239, 68, 68, 0.15)' },
 };
 
+export type AdPlatform = 'google' | 'meta' | 'tiktok' | 'linkedin' | 'email' | 'outros';
+export type AdStatus = 'ativa' | 'pausada' | 'finalizada';
+export type ExpenseCategory = 'publicidade' | 'desenvolvimento' | 'infraestrutura' | 'ferramentas' | 'licencas' | 'salarios' | 'outros';
+export type Frequency = 'unico' | 'mensal' | 'anual';
+export type TeamRole = 'frontend' | 'backend' | 'fullstack' | 'design' | 'product' | 'devops' | 'marketing';
+export type EmploymentType = 'clt' | 'pj' | 'freelancer';
+
+export interface Expense {
+  id: string;
+  name: string;
+  category: ExpenseCategory;
+  amount: number;
+  date: Date;
+  frequency: Frequency;
+  nextDueDate?: Date;
+  description?: string;
+  platform?: AdPlatform;
+  campaignName?: string;
+  ctr?: number;
+  roas?: number;
+  status?: AdStatus;
+  budget?: number;
+  actualSpend?: number;
+}
+
+export interface TeamMember {
+  id: string;
+  name: string;
+  role: TeamRole;
+  email: string;
+  salary: number;
+  employmentType: EmploymentType;
+  startDate: Date;
+  projects: string[];
+  status: 'ativo' | 'inativo';
+}
+
+export interface Revenue {
+  id: string;
+  name: string;
+  amount: number;
+  date: Date;
+  category: 'vendas' | 'servico' | 'assinatura' | 'outros';
+}
+
+export interface Budget {
+  id: string;
+  category: ExpenseCategory;
+  amount: number;
+  month: string;
+  year: number;
+}
+
+export interface FinanceSummary {
+  totalExpenses: number;
+  totalRevenue: number;
+  margin: number;
+  roi: number;
+  budgetRemaining: number;
+}
+
 export type Theme = 'light' | 'dark';
 
 export const darkColors = {
@@ -99,6 +160,17 @@ export const lightColors = {
   warning: '#F59E0B',
   error: '#EF4444',
   info: '#3B82F6',
+};
+
+export const layout = {
+  gap: 12,
+  padding: 20,
+  radius: 12,
+  kpiGrid: 'repeat(4, 1fr)' as const,
+  labelSize: 11,
+  labelWeight: 600,
+  labelUppercase: true,
+  labelLetterSpacing: 0.5,
 };
 
 export const colors = darkColors;

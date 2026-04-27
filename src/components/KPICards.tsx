@@ -1,4 +1,19 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
+import { useCountUp, DURATION_SECONDARY, useBreakpoint } from '../hooks';
+import { darkColors } from '../types';
+
+const colors = darkColors;
+
+const KPICARD_COLORS = {
+  positive: colors.success,
+  positiveBg: 'rgba(16, 185, 129, 0.15)',
+  negative: colors.error,
+  negativeBg: 'rgba(239, 68, 68, 0.15)',
+  cardBg: colors.bgSecondary,
+  labelColor: colors.textMuted,
+  valueColor: colors.text,
+  subtextColor: colors.textMuted,
+};
 
 interface KPICardData {
   id: string;
@@ -16,18 +31,6 @@ interface KPICardsProps {
   currency?: string;
   locale?: string;
 }
-
-const COLORS = {
-  cardBg: '#1A1C1E',
-  pageBg: '#0D0F12',
-  labelColor: '#888A8C',
-  valueColor: '#F0F0F0',
-  subtextColor: '#666666',
-  positive: '#2ECC71',
-  positiveBg: '#1A3D2B',
-  negative: '#FF5252',
-  negativeBg: '#3D1A1A',
-};
 
 const mockCards: KPICardData[] = [
   {
@@ -61,44 +64,6 @@ const mockCards: KPICardData[] = [
   },
 ];
 
-function useBreakpoint(): 'mobile' | 'tablet' | 'desktop' {
-  const [bp, setBp] = useState<'mobile' | 'tablet' | 'desktop'>('desktop');
-
-  useEffect(() => {
-    const update = () => {
-      const w = window.innerWidth;
-      setBp(w < 640 ? 'mobile' : w < 1024 ? 'tablet' : 'desktop');
-    };
-    update();
-    window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
-  }, []);
-
-  return bp;
-}
-
-function useCountUp(end: number, duration = 1200): number {
-  const [count, setCount] = useState(0);
-
-  useEffect(() => {
-    setCount(0);
-    const start = performance.now();
-
-    const tick = (now: number) => {
-      const progress = Math.min((now - start) / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setCount(end * eased);
-      if (progress < 1) {
-        requestAnimationFrame(tick);
-      }
-    };
-
-    requestAnimationFrame(tick);
-  }, [end, duration]);
-
-  return count;
-}
-
 function formatValue(value: number, unit: KPICardData['unit'], locale = 'pt-BR', currency = 'BRL'): string {
   if (unit === 'currency') {
     return new Intl.NumberFormat(locale, {
@@ -116,8 +81,8 @@ function formatValue(value: number, unit: KPICardData['unit'], locale = 'pt-BR',
 
 const VariationBadge: React.FC<{ variation: number }> = ({ variation }) => {
   const isPositive = variation >= 0;
-  const color = isPositive ? COLORS.positive : COLORS.negative;
-  const bg = isPositive ? COLORS.positiveBg : COLORS.negativeBg;
+  const color = isPositive ? KPICARD_COLORS.positive : KPICARD_COLORS.negative;
+  const bg = isPositive ? KPICARD_COLORS.positiveBg : KPICARD_COLORS.negativeBg;
   const icon = isPositive ? '↑' : '↓';
   const text = `${isPositive ? '+' : ''}${variation.toFixed(1)}%`;
 
@@ -145,7 +110,7 @@ const VariationBadge: React.FC<{ variation: number }> = ({ variation }) => {
 const SkeletonCard: React.FC = () => (
   <div
     style={{
-      background: COLORS.cardBg,
+      background: KPICARD_COLORS.cardBg,
       borderRadius: 12,
       padding: 20,
       display: 'flex',
@@ -192,13 +157,13 @@ const KPICard: React.FC<{
   locale: string;
   currency: string;
 }> = ({ data, locale, currency }) => {
-  const animatedValue = useCountUp(data.value, 1200);
+  const animatedValue = useCountUp(data.value, DURATION_SECONDARY);
   const formattedValue = formatValue(animatedValue, data.unit, locale, currency);
 
   return (
     <div
       style={{
-        background: COLORS.cardBg,
+        background: KPICARD_COLORS.cardBg,
         borderRadius: 12,
         padding: 20,
         display: 'flex',
@@ -217,7 +182,7 @@ const KPICard: React.FC<{
           style={{
             fontSize: 11,
             fontWeight: 400,
-            color: COLORS.labelColor,
+            color: KPICARD_COLORS.labelColor,
             textTransform: 'uppercase',
             letterSpacing: '0.5px',
           }}
@@ -231,7 +196,7 @@ const KPICard: React.FC<{
           fontFamily: "'Space Grotesk', 'Roboto Mono', monospace",
           fontSize: 32,
           fontWeight: 700,
-          color: COLORS.valueColor,
+          color: KPICARD_COLORS.valueColor,
           lineHeight: 1.2,
         }}
       >
@@ -241,7 +206,7 @@ const KPICard: React.FC<{
         <div
           style={{
             fontSize: 12,
-            color: COLORS.subtextColor,
+            color: KPICARD_COLORS.subtextColor,
           }}
         >
           {data.subtitle}

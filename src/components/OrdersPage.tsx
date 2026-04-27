@@ -3,9 +3,10 @@ import { useTheme } from './Theme';
 import { Tooltip } from './Tooltip';
 import { PlacesLoading } from './PlacesLoading';
 import { darkColors, lightColors, statusConfig } from '../types';
-import { IconSearch, IconChevronLeft, IconChevronRight, IconTrash, IconArrowUp, IconArrowDown } from './Icons';
+import { Search, ChevronLeft, ChevronRight, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
 import { Modal } from './Modal';
 import { useToast } from './Toast';
+import { useBreakpoint } from '../hooks';
 import KPICards from './KPICards';
 import MultiSelectFilter from './MultiSelectFilter';
 
@@ -73,6 +74,8 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ dateRange: _dateRange })
   const { showToast } = useToast();
   const { theme } = useTheme();
   const colors = theme === 'dark' ? darkColors : lightColors;
+  const bp = useBreakpoint();
+  const isMobile = bp === 'mobile';
   
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -126,7 +129,7 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ dateRange: _dateRange })
 
   const SortIcon: React.FC<{ field: SortField }> = ({ field }) => {
     if (sortField !== field) return null;
-    return sortDir === 'asc' ? <IconArrowUp size={12} /> : <IconArrowDown size={12} />;
+    return sortDir === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />;
   };
 
   const handleDelete = (orderId: string) => {
@@ -143,7 +146,7 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ dateRange: _dateRange })
   };
 
   return (
-    <div>
+    <div style={{ padding: isMobile ? 16 : 32, flex: 1 }}>
       <Modal
         isOpen={deleteModal.isOpen}
         onClose={() => setDeleteModal({ isOpen: false, orderId: null })}
@@ -167,7 +170,7 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ dateRange: _dateRange })
         />
         <div style={{ flex: 1 }} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px', background: colors.bgTertiary, borderRadius: 8, border: `1px solid ${colors.borderLight}`, width: 260 }}>
-          <IconSearch size={16} color={colors.textMuted} />
+          <Search size={16} color={colors.textMuted} />
           <input type="text" placeholder="Buscar..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(0); }}
             style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: 13, color: colors.text, width: '100%' }} />
         </div>
@@ -176,7 +179,7 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ dateRange: _dateRange })
       {loading ? (
         <PlacesLoading rows={5} />
       ) : (
-        <div style={{ background: colors.bgSecondary, borderRadius: 12, padding: 24, border: `1px solid ${colors.borderLight}` }}>
+        <div style={{ background: colors.bgSecondary, borderRadius: 12, padding: isMobile ? 12 : 24, border: `1px solid ${colors.borderLight}`, overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: `1px solid ${colors.borderLight}` }}>
@@ -230,7 +233,7 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ dateRange: _dateRange })
                         onMouseEnter={(e) => e.currentTarget.style.background = `${colors.error}20`}
                         onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                       >
-                        <IconTrash size={16} />
+                        <Trash2 size={16} />
                       </button>
                     </Tooltip>
                   </td>
@@ -241,11 +244,11 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ dateRange: _dateRange })
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 12, marginTop: 16 }}>
             <span style={{ fontSize: 12, color: colors.textMuted }}>{total} registros</span>
             <button style={{ background: colors.bgTertiary, border: 'none', borderRadius: 6, padding: 6, cursor: 'pointer', opacity: page === 0 ? 0.3 : 1 }} onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}>
-              <IconChevronLeft size={14} />
+              <ChevronLeft size={14} />
             </button>
             <span style={{ fontSize: 12, color: colors.textMuted }}>{page + 1} / {totalPages || 1}</span>
             <button style={{ background: colors.bgTertiary, border: 'none', borderRadius: 6, padding: 6, cursor: 'pointer', opacity: page >= totalPages - 1 ? 0.3 : 1 }} onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}>
-              <IconChevronRight size={14} />
+              <ChevronRight size={14} />
             </button>
           </div>
         </div>

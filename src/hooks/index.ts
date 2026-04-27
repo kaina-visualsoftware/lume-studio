@@ -1,6 +1,34 @@
 import { useState, useEffect, useRef } from 'react';
 
-export function useCountUp(target: number, duration: number = 1500): number {
+export const DURATION_PRIMARY = 1500;
+export const DURATION_SECONDARY = 1200;
+export const DURATION_MINOR = 1000;
+export const STAGGER_DELAY = 200;
+
+export const BREAKPOINTS = {
+  mobile: 640,
+  tablet: 1024,
+} as const;
+
+export type Breakpoint = 'mobile' | 'tablet' | 'desktop';
+
+export function useBreakpoint(): Breakpoint {
+  const [bp, setBp] = useState<Breakpoint>('desktop');
+
+  useEffect(() => {
+    const update = () => {
+      const w = window.innerWidth;
+      setBp(w < BREAKPOINTS.mobile ? 'mobile' : w < BREAKPOINTS.tablet ? 'tablet' : 'desktop');
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+
+  return bp;
+}
+
+export function useCountUp(target: number, duration: number = DURATION_PRIMARY): number {
   const [count, setCount] = useState(0);
   const startTime = useRef<number | null>(null);
   const startValue = useRef<number>(0);

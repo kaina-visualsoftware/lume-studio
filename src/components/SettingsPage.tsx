@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useTheme } from './Theme';
 import { darkColors, lightColors } from '../types';
+import { useBreakpoint } from '../hooks';
 import { IconChevronDown } from './Icons';
 
 interface SettingsPageProps {
@@ -81,7 +82,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({ value, options, onChange, l
           borderRadius: 8,
           overflow: 'hidden',
           zIndex: 100,
-          boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+          boxShadow: '0 8px isMobile ? 16 : 24px rgba(0,0,0,0.2)',
         }}>
           {options.map((option) => (
             <button
@@ -153,6 +154,8 @@ const themeOptions = [
 export const SettingsPage: React.FC<SettingsPageProps> = ({ dateRange: _dateRange }) => {
   const { theme, setTheme } = useTheme();
   const colors = theme === 'dark' ? darkColors : lightColors;
+  const bp = useBreakpoint();
+  const isMobile = bp === 'mobile';
   
   const [storeName, setStoreName] = useState('LUME Studio');
   const [storeEmail, setStoreEmail] = useState('contato@lumestudio.com');
@@ -164,18 +167,18 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ dateRange: _dateRang
   const [marketingEmails, setMarketingEmails] = useState(false);
 
   return (
-    <div style={{ padding: 32, flex: 1 }}>
+    <div style={{ padding: isMobile ? 16 : 32, flex: 1 }}>
       <div style={{ marginBottom: 32 }}>
-        <h1 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 24, fontWeight: 700, color: colors.text, marginBottom: 8 }}>Configurações</h1>
+        <h1 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: isMobile ? 16 : 24, fontWeight: 700, color: colors.text, marginBottom: 8 }}>Configurações</h1>
         <p style={{ fontSize: 14, color: colors.textMuted }}>Gerencie as configurações da sua loja</p>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 16 : 24 }}>
         <div style={{ background: colors.bgSecondary, borderRadius: 12, border: `1px solid ${colors.borderLight}` }}>
-          <div style={{ padding: '20px 24px', borderBottom: `1px solid ${colors.borderLight}` }}>
+          <div style={{ padding: '20px isMobile ? 16 : 24px', borderBottom: `1px solid ${colors.borderLight}` }}>
             <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 600, color: colors.text }}>Informações da Loja</h2>
           </div>
-          <div style={{ padding: 24 }}>
+          <div style={{ padding: isMobile ? 16 : 24 }}>
             <div style={{ marginBottom: 20 }}>
               <label style={{ fontSize: 13, fontWeight: 500, color: colors.text, marginBottom: 8, display: 'block' }}>Nome da Loja</label>
               <input 
@@ -209,10 +212,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ dateRange: _dateRang
         </div>
 
         <div style={{ background: colors.bgSecondary, borderRadius: 12, border: `1px solid ${colors.borderLight}` }}>
-          <div style={{ padding: '20px 24px', borderBottom: `1px solid ${colors.borderLight}` }}>
+          <div style={{ padding: '20px isMobile ? 16 : 24px', borderBottom: `1px solid ${colors.borderLight}` }}>
             <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 600, color: colors.text }}>Regional</h2>
           </div>
-          <div style={{ padding: 24 }}>
+          <div style={{ padding: isMobile ? 16 : 24 }}>
             <div style={{ marginBottom: 20 }}>
               <CustomSelect 
                 label="Fuso Horário" 
@@ -235,10 +238,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ dateRange: _dateRang
         </div>
 
         <div style={{ background: colors.bgSecondary, borderRadius: 12, border: `1px solid ${colors.borderLight}` }}>
-          <div style={{ padding: '20px 24px', borderBottom: `1px solid ${colors.borderLight}` }}>
+          <div style={{ padding: '20px isMobile ? 16 : 24px', borderBottom: `1px solid ${colors.borderLight}` }}>
             <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 600, color: colors.text }}>Notificações</h2>
           </div>
-          <div style={{ padding: 24 }}>
+          <div style={{ padding: isMobile ? 16 : 24 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 16, borderBottom: `1px solid ${colors.borderLight}` }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13, fontWeight: 500, color: colors.text }}>Notificações por Email</div>
@@ -247,7 +250,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ dateRange: _dateRang
               <button 
                 type="button"
                 onClick={() => setEmailNotifs(!emailNotifs)}
-                style={{ width: 44, height: 24, borderRadius: 12, background: emailNotifs ? colors.accent : colors.bgTertiary, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 0.2s' }}
+                style={{ width: 44, height: isMobile ? 16 : 24, borderRadius: 12, background: emailNotifs ? colors.accent : colors.bgTertiary, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 0.2s' }}
               >
                 <div style={{ position: 'absolute', top: 2, left: 2, width: 20, height: 20, borderRadius: '50%', background: '#FFFFFF', transition: 'transform 0.2s', transform: emailNotifs ? 'translateX(20px)' : 'translateX(0)' }} />
               </button>
@@ -260,7 +263,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ dateRange: _dateRang
               <button 
                 type="button"
                 onClick={() => setOrderNotifs(!orderNotifs)}
-                style={{ width: 44, height: 24, borderRadius: 12, background: orderNotifs ? colors.accent : colors.bgTertiary, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 0.2s' }}
+                style={{ width: 44, height: isMobile ? 16 : 24, borderRadius: 12, background: orderNotifs ? colors.accent : colors.bgTertiary, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 0.2s' }}
               >
                 <div style={{ position: 'absolute', top: 2, left: 2, width: 20, height: 20, borderRadius: '50%', background: '#FFFFFF', transition: 'transform 0.2s', transform: orderNotifs ? 'translateX(20px)' : 'translateX(0)' }} />
               </button>
@@ -273,7 +276,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ dateRange: _dateRang
               <button 
                 type="button"
                 onClick={() => setMarketingEmails(!marketingEmails)}
-                style={{ width: 44, height: 24, borderRadius: 12, background: marketingEmails ? colors.accent : colors.bgTertiary, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 0.2s' }}
+                style={{ width: 44, height: isMobile ? 16 : 24, borderRadius: 12, background: marketingEmails ? colors.accent : colors.bgTertiary, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 0.2s' }}
               >
                 <div style={{ position: 'absolute', top: 2, left: 2, width: 20, height: 20, borderRadius: '50%', background: '#FFFFFF', transition: 'transform 0.2s', transform: marketingEmails ? 'translateX(20px)' : 'translateX(0)' }} />
               </button>
@@ -282,10 +285,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ dateRange: _dateRang
         </div>
 
         <div style={{ background: colors.bgSecondary, borderRadius: 12, border: `1px solid ${colors.borderLight}` }}>
-          <div style={{ padding: '20px 24px', borderBottom: `1px solid ${colors.borderLight}` }}>
+          <div style={{ padding: '20px isMobile ? 16 : 24px', borderBottom: `1px solid ${colors.borderLight}` }}>
             <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 600, color: colors.text }}>Aparência</h2>
           </div>
-          <div style={{ padding: 24 }}>
+          <div style={{ padding: isMobile ? 16 : 24 }}>
             <CustomSelect 
               label="Tema" 
               value={theme}
@@ -297,10 +300,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ dateRange: _dateRang
         </div>
 
         <div style={{ border: `1px solid ${colors.error}`, borderRadius: 12, background: `${colors.error}08` }}>
-          <div style={{ padding: '20px 24px', borderBottom: `1px solid ${colors.error}30` }}>
+          <div style={{ padding: '20px isMobile ? 16 : 24px', borderBottom: `1px solid ${colors.error}30` }}>
             <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, fontWeight: 600, color: colors.error }}>Zona de Perigo</h2>
           </div>
-          <div style={{ padding: 24 }}>
+          <div style={{ padding: isMobile ? 16 : 24 }}>
             <p style={{ fontSize: 13, color: colors.textMuted, marginBottom: 16 }}>
               Uma vez excluída, sua loja não pode ser recuperada. Todos os dados serão perdidos permanentemente.
             </p>

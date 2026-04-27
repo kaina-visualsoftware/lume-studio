@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTheme } from './Theme';
 import { darkColors, lightColors } from '../types';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { useCountUp, useBreakpoint } from '../hooks';
 
 type Tab = 'overview' | 'servers' | 'services' | 'ads' | 'devtools' | 'finance' | 'projects';
 type ServerStatus = 'online' | 'offline' | 'maintenance' | 'degraded';
@@ -135,7 +136,7 @@ const daysUntil = (d: Date): number => Math.ceil((d.getTime() - Date.now()) / 86
 const formatNum = (n: number) => n.toLocaleString('pt-BR');
 
 const Card: React.FC<{ title: string; children: React.ReactNode; colors: typeof darkColors }> = ({ title, children, colors }) => (
-  <div style={{ background: colors.bgSecondary, borderRadius: 12, padding: 20, border: `1px solid ${colors.borderLight}` }}>
+  <div style={{ background: colors.bgSecondary, borderRadius: 12, padding: 24, border: `1px solid ${colors.borderLight}` }}>
     <div style={{ fontSize: 13, fontWeight: 600, color: colors.text, marginBottom: 16 }}>{title}</div>
     {children}
   </div>
@@ -183,16 +184,25 @@ const ProgressBar: React.FC<{ value: number; max?: number; color: string; bg: st
 export default function ServersPage() {
   const { theme } = useTheme();
   const colors = theme === 'dark' ? darkColors : lightColors;
+  const bp = useBreakpoint();
+  const isMobile = bp === 'mobile';
+  const isTablet = bp === 'tablet';
   const [activeTab, setActiveTab] = useState<Tab>('overview');
 
   const serversTotalMonthly = mockServers.reduce((a, s) => a + s.cost.amount, 0);
   const servicesTotalMonthly = mockServices.reduce((a, s) => a + s.cost.amount, 0);
   const adsTotalMonthly = mockAdPlatforms.reduce((a, p) => a + p.spent, 0);
   const adsBudgetMonthly = mockAdPlatforms.reduce((a, p) => a + p.budget, 0);
-  const devToolsTotalMonthly = mockDevTools.reduce((a, d) => a + d.cost.amount, 0);
+  const devToolsTotal = mockDevTools.reduce((a, d) => a + d.cost.amount, 0);
   
-  const totalMonthly = serversTotalMonthly + servicesTotalMonthly + adsTotalMonthly + devToolsTotalMonthly;
-  const totalAnnual = totalMonthly * 12;
+  const totalMonthlyRaw = serversTotalMonthly + servicesTotalMonthly + adsTotalMonthly + devToolsTotal;
+  const totalAnnualRaw = totalMonthlyRaw * 12;
+  
+  const animatedServers = useCountUp(serversTotalMonthly, 1200);
+  const animatedServices = useCountUp(servicesTotalMonthly, 1400);
+  const animatedAds = useCountUp(adsTotalMonthly, 1600);
+  const animatedDevTools = useCountUp(devToolsTotal, 1800);
+  const animatedTotalMonthly = useCountUp(totalMonthlyRaw, 2000);
   
   const projectsRevenue = mockProjects.filter(p => p.type === 'client').reduce((a, p) => a + p.revenue, 0);
   const projectsCost = mockProjects.reduce((a, p) => a + p.cost, 0);
@@ -205,8 +215,6 @@ export default function ServersPage() {
     ...mockAdPlatforms.map(a => ({ amount: a.budget, cycle: 'monthly' as const, item: a.name, type: 'ad' as const, nextBilling: new Date() })),
   ].sort((a, b) => daysUntil(a.nextBilling) - daysUntil(b.nextBilling));
 
-  const projectedCost6Months = totalMonthly * 6 * 1.15;
-
   const tabs: { id: Tab; label: string }[] = [
     { id: 'overview', label: 'Resumo' },
     { id: 'servers', label: 'Servidores' },
@@ -218,24 +226,7 @@ export default function ServersPage() {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: colors.text, margin: 0 }}>Infraestrutura</h1>
-          <p style={{ fontSize: 12, color: colors.textMuted, margin: '4px 0 0' }}>Controle completo de custos operacionais</p>
-        </div>
-        <div style={{ display: 'flex', gap: 24, textAlign: 'right' }}>
-          <div>
-            <div style={{ fontSize: 10, color: colors.textMuted, textTransform: 'uppercase' }}>Custo Mensal</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: colors.success }}>{formatBRL(totalMonthly)}</div>
-          </div>
-          <div>
-            <div style={{ fontSize: 10, color: colors.textMuted, textTransform: 'uppercase' }}>Anual Projetado</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: colors.text }}>{formatBRL(projectedCost6Months)}</div>
-          </div>
-        </div>
-      </div>
-
+    <div style={{ padding: isMobile ? 16 : 32, flex: 1 }}>
       <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: colors.bgSecondary, borderRadius: 10, padding: 4, width: 'fit-content' }}>
         {tabs.map(tab => (
           <button
@@ -260,21 +251,21 @@ export default function ServersPage() {
 
       {activeTab === 'overview' && (
         <div style={{ display: 'grid', gap: 12 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(2, 1fr)' : isMobile ? '1fr' : isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 12 }}>
             <Card title="Servidores" colors={colors}>
-              <div style={{ fontSize: 24, fontWeight: 700, color: colors.text }}>{formatBRL(serversTotalMonthly)}</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: colors.text }}>{formatBRL(animatedServers)}</div>
               <div style={{ fontSize: 11, color: colors.textMuted, marginTop: 4 }}>{mockServers.length} ativos</div>
             </Card>
             <Card title="Serviços" colors={colors}>
-              <div style={{ fontSize: 24, fontWeight: 700, color: colors.text }}>{formatBRL(servicesTotalMonthly)}</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: colors.text }}>{formatBRL(animatedServices)}</div>
               <div style={{ fontSize: 11, color: colors.textMuted, marginTop: 4 }}>{mockServices.length} serviços</div>
             </Card>
             <Card title="Publicidade" colors={colors}>
-              <div style={{ fontSize: 24, fontWeight: 700, color: colors.text }}>{formatBRL(adsTotalMonthly)}</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: colors.text }}>{formatBRL(animatedAds)}</div>
               <div style={{ fontSize: 11, color: colors.textMuted, marginTop: 4 }}>{formatBRL(adsBudgetMonthly - adsTotalMonthly)} restante</div>
             </Card>
             <Card title="Dev Tools" colors={colors}>
-              <div style={{ fontSize: 24, fontWeight: 700, color: colors.text }}>{formatBRL(devToolsTotalMonthly)}</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: colors.text }}>{formatBRL(animatedDevTools)}</div>
               <div style={{ fontSize: 11, color: colors.textMuted, marginTop: 4 }}>{mockDevTools.length} ferramentas</div>
             </Card>
           </div>
@@ -309,11 +300,11 @@ export default function ServersPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <div>
                   <div style={{ fontSize: 10, color: colors.textMuted }}>DESPESA MENSAL</div>
-                  <div style={{ fontSize: 20, fontWeight: 700, color: colors.error }}>{formatBRL(totalMonthly)}</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: colors.error }}>{formatBRL(animatedTotalMonthly)}</div>
                 </div>
                 <div>
                   <div style={{ fontSize: 10, color: colors.textMuted }}>DESPESA ANUAL</div>
-                  <div style={{ fontSize: 20, fontWeight: 700, color: colors.text }}>{formatBRL(totalAnnual)}</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: colors.text }}>{formatBRL(totalAnnualRaw)}</div>
                 </div>
                 <div>
                   <div style={{ fontSize: 10, color: colors.textMuted }}>RECEITA PROJETOS</div>
@@ -347,7 +338,7 @@ export default function ServersPage() {
                       <div style={{ fontSize: 11, color: colors.textMuted }}>{server.provider} • {server.region}</div>
                     </div>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 12 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 12, marginBottom: 12 }}>
                     <div>
                       <div style={{ fontSize: 10, color: colors.textMuted, marginBottom: 4 }}>CPU</div>
                       <ProgressBar value={server.usage.cpu.used} color={server.usage.cpu.used > 80 ? colors.error : colors.accent} bg={colors.bgTertiary} />
@@ -375,7 +366,7 @@ export default function ServersPage() {
       {activeTab === 'services' && (
         <div style={{ display: 'grid', gap: 12 }}>
           <Card title="Serviços de Hospedagem" colors={colors}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: 12 }}>
               {mockServices.map(service => (
                 <div key={service.id} style={{ padding: 16, background: colors.bgTertiary, borderRadius: 10 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -406,7 +397,7 @@ export default function ServersPage() {
 
       {activeTab === 'ads' && (
         <div style={{ display: 'grid', gap: 12 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)', gap: 12 }}>
             <Card title="Orçamento" colors={colors}>
               <div style={{ fontSize: 24, fontWeight: 700, color: colors.text }}>{formatBRL(adsBudgetMonthly)}</div>
               <div style={{ fontSize: 11, color: colors.textMuted }}>mensal</div>
@@ -440,7 +431,7 @@ export default function ServersPage() {
                       {ad.status === 'active' ? 'Ativo' : 'Pausado'}
                     </div>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 8 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : isMobile ? '1fr' : isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 16, marginBottom: 8 }}>
                     <div>
                       <div style={{ fontSize: 10, color: colors.textMuted }}>Gasto</div>
                       <div style={{ fontSize: 13, fontWeight: 600, color: colors.text }}>{formatBRL(ad.spent)}</div>
@@ -469,7 +460,7 @@ export default function ServersPage() {
       {activeTab === 'devtools' && (
         <div style={{ display: 'grid', gap: 12 }}>
           <Card title="Ferramentas de Desenvolvimento" colors={colors}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)', gap: 12 }}>
               {mockDevTools.map(tool => (
                 <div key={tool.id} style={{ padding: 16, background: colors.bgTertiary, borderRadius: 10 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: colors.text, marginBottom: 4 }}>{tool.name}</div>
@@ -487,9 +478,9 @@ export default function ServersPage() {
 
       {activeTab === 'finance' && (
         <div style={{ display: 'grid', gap: 12 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 12 }}>
             <Card title="Despesa Mensal" colors={colors}>
-              <div style={{ fontSize: 24, fontWeight: 700, color: colors.error }}>{formatBRL(totalMonthly)}</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: colors.error }}>{formatBRL(animatedTotalMonthly)}</div>
             </Card>
             <Card title="Receita Clientes" colors={colors}>
               <div style={{ fontSize: 24, fontWeight: 700, color: colors.success }}>{formatBRL(projectsRevenue)}</div>
@@ -520,11 +511,11 @@ export default function ServersPage() {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', background: colors.bgTertiary, borderRadius: 8 }}>
                 <span style={{ color: colors.text }}>Dev Tools</span>
-                <span style={{ color: colors.success, fontWeight: 600 }}>{formatBRL(devToolsTotalMonthly)}</span>
+                <span style={{ color: colors.success, fontWeight: 600 }}>{formatBRL(animatedDevTools)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', borderRadius: 8, border: `1px solid ${colors.borderLight}` }}>
                 <span style={{ fontSize: 13, fontWeight: 600, color: colors.text }}>Total</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: colors.text }}>{formatBRL(totalMonthly)}</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: colors.text }}>{formatBRL(animatedTotalMonthly)}</span>
               </div>
             </div>
           </Card>
@@ -556,7 +547,7 @@ export default function ServersPage() {
                       <div style={{ fontSize: 10, color: colors.textMuted, textTransform: 'capitalize' }}>{project.type === 'internal' ? 'Interno' : 'Cliente'}</div>
                     </div>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)', gap: 16 }}>
                     <div>
                       <div style={{ fontSize: 10, color: colors.textMuted }}>Receita</div>
                       <div style={{ fontSize: 13, fontWeight: 600, color: colors.success }}>{formatBRL(project.revenue)}</div>

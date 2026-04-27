@@ -6,6 +6,7 @@ import { ToastProvider } from './components/Toast';
 import { ThemeProvider, useTheme } from './components/Theme';
 import { PageTransition } from './components/PageTransition';
 import { Sidebar } from './components/Sidebar';
+import { FinanceProvider } from './context/FinanceContext';
 import { KPICardComponent } from './components/KPICard';
 import { RevenueChart } from './components/RevenueChart';
 import { OrdersTable } from './components/OrdersTable';
@@ -17,11 +18,13 @@ import { UsersPage } from './components/UsersPage';
 import { ProductsPage } from './components/ProductsPage';
 import { OrdersPage } from './components/OrdersPage';
 import { SettingsPage } from './components/SettingsPage';
+import FinancePage from './components/FinancePage';
 import ServersPage from './components/ServersPage';
 import { useRealTimeClock } from './hooks';
 import { darkColors, lightColors } from './types';
 import { mockKPIs, mockChartData, mockOrders, mockTopProducts, mockActivity, mockHeatmap } from './data';
 import { ExportButton } from './components/ExportButton';
+import { PageLoader } from './components/ui/PageLoader';
 
 const globalStyles = `
   @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -33,33 +36,30 @@ const globalStyles = `
   input, button { font-family: inherit; }
 `;
 
-const PageLoader: React.FC = () => {
-  const { resolvedTheme } = useTheme();
-  const colors = resolvedTheme === 'dark' ? darkColors : lightColors;
-  
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 80 }}>
-      <div style={{ textAlign: 'center' }}>
-        <div style={{ width: 32, height: 32, border: `2px solid ${colors.border}`, borderTop: `2px solid ${colors.accent}`, borderRadius: 6, animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
-        <div style={{ color: colors.textMuted, fontSize: 12 }}>Carregando página...</div>
-      </div>
-    </div>
-  );
-};
-
 const DashboardPage: React.FC = () => {
   const [page, setPage] = useState(0);
   return (
-    <div style={{ padding: 32, flex: 1 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20, marginBottom: 32 }}>
-        {mockKPIs.map((kpi, index) => (<KPICardComponent key={kpi.id} kpi={kpi} index={index} />))}
+    <div style={{ display: "flex", alignItems: "center", height: "100%" }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(4, 1fr)",
+          gap: 20,
+          marginBottom: 32,
+        }}
+      >
+        {mockKPIs.map((kpi, index) => (
+          <KPICardComponent key={kpi.id} kpi={kpi} index={index} />
+        ))}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 24 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div
+        style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 24 }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
           <RevenueChart data={mockChartData} />
           <OrdersTable orders={mockOrders} page={page} onPageChange={setPage} />
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
           <Heatmap data={mockHeatmap} />
           <TopProductsChart products={mockTopProducts} />
           <ActivityFeed events={mockActivity} />
@@ -120,6 +120,7 @@ const ProtectedLayout: React.FC = () => {
       case 'products': return <ProductsPage dateRange="30d" />;
       case 'orders': return <OrdersPage dateRange="30d" />;
       case 'servers': return <ServersPage />;
+      case 'finance': return <FinancePage />;
       case 'settings': return <SettingsPage dateRange="30d" />;
       default: return <DashboardPage />;
     }
@@ -133,6 +134,7 @@ const ProtectedLayout: React.FC = () => {
       case 'products': return { title: 'Produtos', subtitle: 'Catálogo de produtos' };
       case 'orders': return { title: 'Pedidos', subtitle: 'Gerencie pedidos' };
       case 'servers': return { title: 'Infraestrutura', subtitle: 'Recursos de hospedagem' };
+      case 'finance': return { title: 'Financeiro', subtitle: 'Gestão financeira completa' };
       case 'settings': return { title: 'Configurações', subtitle: 'Preferências da loja' };
       default: return { title: 'Dashboard', subtitle: '' };
     }
@@ -146,7 +148,7 @@ const ProtectedLayout: React.FC = () => {
     <div style={{ display: 'flex', minHeight: '100vh', background: colors.bg }}>
       <style>{globalStyles}</style>
       <Sidebar activeItem={activePage} onItemChange={setActivePage} userName={user?.name} userEmail={user?.email} />
-      <div style={{ marginLeft: 240, flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ marginLeft: 240, flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
         <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 16, padding: '16px 32px', borderBottom: `1px solid ${colors.borderLight}`, background: colors.bgSecondary }}>
           <button onClick={logout} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', background: 'transparent', border: `1px solid ${colors.borderLight}`, borderRadius: 8, fontSize: 12, color: colors.textMuted, cursor: 'pointer' }}>
             <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -161,7 +163,7 @@ const ProtectedLayout: React.FC = () => {
           </div>
         </div>
         <PageTransition key={transitionKey} isActive>
-          <div style={{ padding: 32, flex: 1, animation: 'fadeIn 0.3s ease-out' }}>
+          <div style={{ flex: 1, animation: 'fadeIn 0.3s ease-out' }}>
             <PageHeader title={pageInfo.title} subtitle={pageInfo.subtitle} colors={colors}>
               {showExport && (
                 <ExportButton data={mockOrders as unknown as Record<string, unknown>[]} filename={activePage} label="Exportar CSV" />
@@ -198,7 +200,9 @@ export default function App() {
       <ToastProvider>
         <ThemeProvider>
           <AuthProvider>
-            <AppRoutes />
+            <FinanceProvider>
+              <AppRoutes />
+            </FinanceProvider>
           </AuthProvider>
         </ThemeProvider>
       </ToastProvider>

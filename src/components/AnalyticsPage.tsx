@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTheme } from './Theme';
 import { darkColors, lightColors } from '../types';
+import { useBreakpoint } from '../hooks';
 import KPICards from './KPICards';
 import { 
   AreaChart, Area, BarChart, Bar, PieChart as RechartsPieChart, Pie, Cell, 
@@ -123,7 +124,7 @@ const MiniPie: React.FC<MiniPieProps> = ({ data, colors }) => {
   };
   
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 20, height: '100%' }}>
+    <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
       <div style={{ width: '40%', height: '100%', minHeight: 120 }}>
         <ResponsiveContainer width="100%" height="100%">
           <RechartsPieChart>
@@ -376,14 +377,17 @@ const FunnelViz: React.FC<FunnelProps> = ({ data, colors }) => {
 export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ dateRange: _dateRange }) => {
   const { theme } = useTheme();
   const colors = theme === 'dark' ? darkColors : lightColors;
+  const bp = useBreakpoint();
+  const isMobile = bp === 'mobile';
+  const isTablet = bp === 'tablet';
 
   const totalRevenue = mockRevenueData.reduce((acc, d) => acc + d.revenue, 0);
 
   return (
-    <div>
+    <div style={{ padding: isMobile ? 16 : 32, flex: 1 }}>
       <KPICards cards={mockKPIs} loading={false} />
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12, marginTop: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : isTablet ? '1fr 1fr' : '2fr 1fr', gap: 12, marginTop: 24 }}>
         <div style={{ background: colors.bgSecondary, borderRadius: 12, padding: 20, border: `1px solid ${colors.borderLight}`, display: 'flex', flexDirection: 'column', minHeight: 280 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <div>
@@ -460,7 +464,7 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ dateRange: _dateRa
 
       <div style={{ background: colors.bgSecondary, borderRadius: 12, padding: 20, border: `1px solid ${colors.borderLight}`, marginTop: 12 }}>
         <div style={{ fontSize: 12, fontWeight: 600, color: colors.text, marginBottom: 16 }}>Por País</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : isTablet ? 'repeat(3, 1fr)' : 'repeat(5, 1fr)', gap: 12 }}>
           {mockCountryData.map((item, i) => (
             <div key={i} style={{ textAlign: 'center', padding: 16, background: colors.bgTertiary, borderRadius: 8 }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: colors.text, marginBottom: 4 }}>{item.country}</div>

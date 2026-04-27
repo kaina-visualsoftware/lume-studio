@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useTheme } from './Theme';
 import { PlacesLoading } from './PlacesLoading';
 import { darkColors, lightColors } from '../types';
-import { IconSearch, IconChevronLeft, IconChevronRight, IconUsers, IconArrowUp, IconArrowDown } from './Icons';
+import { Search, ChevronLeft, ChevronRight, User, ArrowUp, ArrowDown } from 'lucide-react';
+import { useBreakpoint } from '../hooks';
 import KPICards from './KPICards';
 import MultiSelectFilter from './MultiSelectFilter';
 
@@ -72,6 +73,8 @@ const fetchUsers = async (page: number, search: string, roleFilter: string[], st
 export const UsersPage: React.FC<UsersPageProps> = ({ dateRange: _dateRange }) => {
   const { theme } = useTheme();
   const colors = theme === 'dark' ? darkColors : lightColors;
+  const bp = useBreakpoint();
+  const isMobile = bp === 'mobile';
   
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<User[]>([]);
@@ -125,9 +128,9 @@ export const UsersPage: React.FC<UsersPageProps> = ({ dateRange: _dateRange }) =
     setPage(0);
   };
 
-  const SortIcon: React.FC<{ field: SortField }> = ({ field }) => {
+const SortIcon: React.FC<{ field: SortField }> = ({ field }) => {
     if (sortField !== field) return null;
-    return sortDir === 'asc' ? <IconArrowUp size={12} /> : <IconArrowDown size={12} />;
+    return sortDir === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />;
   };
 
   const roleConfig = {
@@ -143,7 +146,7 @@ export const UsersPage: React.FC<UsersPageProps> = ({ dateRange: _dateRange }) =
   };
 
   return (
-    <div>
+    <div style={{ padding: isMobile ? 16 : 32, flex: 1 }}>
       <KPICards cards={usersCards} loading={loading} />
 
       <div style={{ display: 'flex', gap: 12, marginTop: 24, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -163,7 +166,7 @@ export const UsersPage: React.FC<UsersPageProps> = ({ dateRange: _dateRange }) =
         />
         <div style={{ flex: 1 }} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px', background: colors.bgTertiary, borderRadius: 8, border: `1px solid ${colors.borderLight}`, width: 260 }}>
-          <IconSearch size={16} color={colors.textMuted} />
+          <Search size={16} color={colors.textMuted} />
           <input type="text" placeholder="Buscar..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(0); }}
             style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: 13, color: colors.text, width: '100%' }} />
         </div>
@@ -172,8 +175,8 @@ export const UsersPage: React.FC<UsersPageProps> = ({ dateRange: _dateRange }) =
       {loading ? (
         <PlacesLoading rows={5} />
       ) : (
-        <div style={{ background: colors.bgSecondary, borderRadius: 12, padding: 24, border: `1px solid ${colors.borderLight}` }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <div style={{ background: colors.bgSecondary, borderRadius: 12, padding: isMobile ? 12 : 24, border: `1px solid ${colors.borderLight}`, overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
             <thead>
               <tr style={{ borderBottom: `1px solid ${colors.borderLight}` }}>
                 <th style={{ textAlign: 'left', padding: '12px 16px', fontSize: 11, fontWeight: 600, color: colors.textMuted, cursor: 'pointer' }} onClick={() => handleSort('name')}>
@@ -205,7 +208,7 @@ export const UsersPage: React.FC<UsersPageProps> = ({ dateRange: _dateRange }) =
                   <td style={{ padding: '14px 16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                       <div style={{ width: 32, height: 32, borderRadius: 8, background: colors.bgTertiary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <IconUsers size={16} color={colors.textMuted} />
+                        <User size={16} color={colors.textMuted} />
                       </div>
                       <div>
                         <div style={{ fontWeight: 500, color: colors.text }}>{user.name}</div>
@@ -237,11 +240,11 @@ export const UsersPage: React.FC<UsersPageProps> = ({ dateRange: _dateRange }) =
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 12, marginTop: 16 }}>
             <span style={{ fontSize: 12, color: colors.textMuted }}>{total} registros</span>
             <button style={{ background: colors.bgTertiary, border: 'none', borderRadius: 6, padding: 6, cursor: 'pointer', opacity: page === 0 ? 0.3 : 1 }} onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}>
-              <IconChevronLeft size={14} />
+              <ChevronLeft size={14} />
             </button>
             <span style={{ fontSize: 12, color: colors.textMuted }}>{page + 1} / {totalPages || 1}</span>
             <button style={{ background: colors.bgTertiary, border: 'none', borderRadius: 6, padding: 6, cursor: 'pointer', opacity: page >= totalPages - 1 ? 0.3 : 1 }} onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}>
-              <IconChevronRight size={14} />
+              <ChevronRight size={14} />
             </button>
           </div>
         </div>

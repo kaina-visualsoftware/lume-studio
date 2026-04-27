@@ -4,6 +4,7 @@ import { Tooltip } from './Tooltip';
 import { PlacesLoading } from './PlacesLoading';
 import { darkColors, lightColors, TopProduct } from '../types';
 import { IconSearch, IconChevronLeft, IconChevronRight, IconProducts, IconArrowUp, IconArrowDown } from './Icons';
+import { useBreakpoint } from '../hooks';
 import KPICards from './KPICards';
 import MultiSelectFilter from './MultiSelectFilter';
 
@@ -65,6 +66,8 @@ type SortField = 'name' | 'price' | 'sales' | 'stock' | 'revenue';
 export const ProductsPage: React.FC<ProductsPageProps> = ({ dateRange: _dateRange }) => {
   const { theme } = useTheme();
   const colors = theme === 'dark' ? darkColors : lightColors;
+  const bp = useBreakpoint();
+  const isMobile = bp === 'mobile';
   
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<Product[]>([]);
@@ -130,7 +133,7 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({ dateRange: _dateRang
   };
 
   return (
-    <div>
+    <div style={{ padding: isMobile ? 16 : 32, flex: 1 }}>
       <KPICards cards={productsCards} loading={loading} />
 
       <div style={{ display: 'flex', gap: 12, marginTop: 24, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -152,7 +155,7 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({ dateRange: _dateRang
       {loading ? (
         <PlacesLoading rows={5} />
       ) : (
-        <div style={{ background: colors.bgSecondary, borderRadius: 12, padding: 24, border: `1px solid ${colors.borderLight}` }}>
+        <div style={{ background: colors.bgSecondary, borderRadius: 12, padding: isMobile ? 12 : 24, border: `1px solid ${colors.borderLight}`, overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: `1px solid ${colors.borderLight}` }}>

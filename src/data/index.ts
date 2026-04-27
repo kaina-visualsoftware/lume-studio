@@ -84,5 +84,6 @@ export const navItems: NavItem[] = [
   { id: 'products', label: 'Produtos', icon: 'products' },
   { id: 'orders', label: 'Pedidos', icon: 'orders' },
   { id: 'servers', label: 'Infraestrutura', icon: 'servers' },
+  { id: 'finance', label: 'Financeiro', icon: 'dollar' },
   { id: 'settings', label: 'Configurações', icon: 'settings' },
 ];

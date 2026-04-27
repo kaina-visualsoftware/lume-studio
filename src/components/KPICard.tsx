@@ -1,7 +1,7 @@
 import React from 'react';
 import { KPICard } from '../types';
 import { useCountUp } from '../hooks';
-import { IconArrowUp, IconArrowDown } from './Icons';
+import { ArrowUp, ArrowDown } from 'lucide-react';
 import { colors } from '../types';
 
 interface KPICardProps {
@@ -89,9 +89,9 @@ export const KPICardComponent: React.FC<KPICardProps> = ({ kpi, index }) => {
           }}
         >
           {kpi.trend === 'up' ? (
-            <IconArrowUp size={12} color={trendColor} />
+            <ArrowUp size={12} color={trendColor} />
           ) : (
-            <IconArrowDown size={12} color={trendColor} />
+            <ArrowDown size={12} color={trendColor} />
           )}
           <span style={{ ...styles.kpiTrendText, color: trendColor }}>
             {Math.abs(parseFloat(percentageChange))}%

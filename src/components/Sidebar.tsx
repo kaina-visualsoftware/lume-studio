@@ -1,7 +1,8 @@
 import React from 'react';
 import { navItems } from '../data';
 import { colors } from '../types';
-import { IconDashboard, IconAnalytics, IconUsers, IconProducts, IconOrders, IconSettings, IconServers } from './Icons';
+import { IconDashboard, IconAnalytics, IconUsers, IconProducts, IconOrders, IconSettings, IconServers, IconDollar } from './Icons';
+import { useFinance } from '../context/FinanceContext';
 
 interface SidebarProps {
   activeItem: string;
@@ -18,6 +19,7 @@ const iconMap: Record<string, React.FC<{ size?: number; color?: string }>> = {
   orders: IconOrders,
   settings: IconSettings,
   servers: IconServers,
+  dollar: IconDollar,
 };
 
 const styles = {
@@ -145,7 +147,9 @@ const styles = {
 };
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeItem, onItemChange, userName, userEmail }) => {
+  const { alerts } = useFinance();
   const initials = userName?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U';
+  const alertCount = alerts.length;
 
   return (
     <aside style={styles.sidebar}>
@@ -157,6 +161,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeItem, onItemChange, user
         {navItems.map((item) => {
           const Icon = iconMap[item.icon];
           const isActive = activeItem === item.id;
+          const showBadge = item.id === 'finance' && alertCount > 0;
           return (
             <button
               key={item.id}
@@ -169,6 +174,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeItem, onItemChange, user
             >
               <Icon size={18} color="currentColor" />
               <span style={styles.navItemLabel}>{item.label}</span>
+              {showBadge && (
+                <span style={{
+                  marginLeft: 'auto',
+                  background: colors.error,
+                  color: '#FFFFFF',
+                  fontSize: 10,
+                  fontWeight: 600,
+                  padding: '2px 6px',
+                  borderRadius: 10,
+                  minWidth: 18,
+                  textAlign: 'center',
+                }}>{alertCount}</span>
+              )}
             </button>
           );
         })}
